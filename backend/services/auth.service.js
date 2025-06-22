@@ -1,7 +1,7 @@
 // src/services/auth.service.js
 const bcrypt = require('bcrypt');
-const prisma = require('../config/db.js');
-const { generateToken } = require('../utils/jwt.js');
+const prisma = require('../config/db');
+const { generateToken } = require('../utils/jwt');
 
 exports.signup = async ({ user_id, password, role }) => {
   const existingUser = await prisma.user.findUnique({ where: { user_id } });
@@ -13,7 +13,7 @@ exports.signup = async ({ user_id, password, role }) => {
     data: {
       user_id,
       password: hashedPassword,
-      role : role || "STUDENT",
+      role,
     },
     select: {
       id: true,

@@ -1,18 +1,24 @@
 // src/middlewares/auth.middleware.js
-const jwt = require('jsonwebtoken');
-const SECRET = process.env.JWT_SECRET || 'default_secret';
+const { verifyToken: verifyJWT } = require('../utils/jwt');
 
-exports.protect = (req, res, next) => {
+const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer '))
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Unauthorized' });
+  }
 
   const token = authHeader.split(' ')[1];
+
   try {
-    const decoded = jwt.verify(token, SECRET);
+    const decoded = verifyJWT(token); // now uses the utility function
     req.user = decoded;
     next();
   } catch (err) {
-    res.status(401).json({ message: 'Token is invalid or expired' });
+    return res.status(401).json({ message: 'Token is invalid or expired' });
   }
+};
+
+module.exports = {
+  verifyToken
 };
