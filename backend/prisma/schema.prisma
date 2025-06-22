@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  user_id    String   @unique
+  password   String
+  role       String
+  is_deleted Boolean  @default(false)
+
+  student      StudentDetails?
+  alumni       AlumniDetails?
+  jobs         Job[]
+  applications JobApplied[]
+
+  @@index([role])
+  @@index([is_deleted])
+}
+
+model StudentDetails {
+  id                  String   @id @default(uuid())
+  user                User     @relation(fields: [user_id], references: [id])
+  user_id             String   @unique
+  full_name           String
+  bio                 String
+  mobile_number       String
+  gender              String
+  email_address       String
+  linked_in           String
+  github              String
+  about_us            String
+  dob                 DateTime
+  profile_picture_url String
+  resume              String
+
+  @@index([full_name])
+  @@index([email_address])
+}
+
+model AlumniDetails {
+  id                  String   @id @default(uuid())
+  user                User     @relation(fields: [user_id], references: [id])
+  user_id             String   @unique
+  full_name           String
+  bio                 String
+  mobile_number       String
+  gender              String
+  email_address       String
+  dob                 DateTime
+  profile_picture_url String
+  passing_batch       Int
+  degree_certificate  String
+
+  @@index([full_name])
+  @@index([email_address])
+  @@index([passing_batch])
+}
+
+model Job {
+  id              String     @id @default(uuid())
+  user            User       @relation(fields: [user_id], references: [id])
+  user_id         String
+  job_title       String
+  job_description String
+  designation     String
+  location        String
+  mode            String
+  experience      String
+  salary          String
+  vacancy         Int
+  joining_date    DateTime
+  status          JobStatus
+  open_till       DateTime
+  is_deleted      Boolean    @default(false)
+
+  applications    JobApplied[]
+
+  @@index([user_id])
+  @@index([status])
+  @@index([is_deleted])
+  @@index([open_till])
+  @@index([job_title])
+}
+
+model JobApplied {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [user_id], references: [id])
+  user_id    String
+  job        Job      @relation(fields: [job_id], references: [id])
+  job_id     String
+  applied_at DateTime
+
+  @@index([user_id])
+  @@index([job_id])
+  @@index([applied_at])
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
+  ON_HOLD
+}
