@@ -1,5 +1,76 @@
 const userService = require('../services/user.service');
-
+const getAllUsers = async (req, res) => {
+    try {
+        
+        // Extract query parameters
+        const {
+            role: filterRole,
+            search,
+            page = 1,
+            limit = 10
+        } = req.query;
+        
+        // Validate pagination parameters
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        
+        if (pageNum < 1) {
+            return res.status(400).json({
+                success: false,
+                message: "Page number must be greater than 0"
+            });
+        }
+        
+        if (limitNum < 1 || limitNum > 100) {
+            return res.status(400).json({
+                success: false,
+                message: "Limit must be between 1 and 100"
+            });
+        }
+        
+        // Validate role filter
+        const validRoles = ['student', 'alumni', 'admin'];
+        if (filterRole && !validRoles.includes(filterRole)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid role filter. Must be one of: student, alumni, admin"
+            });
+        }
+        
+        // Prepare filters
+        const filters = {
+            role: filterRole,
+            search: search?.trim(),
+            page: pageNum,
+            limit: limitNum
+        };
+        
+        // Call service
+        const result = await userService.getAllUsers(filters);
+        
+        if (result.success) {
+            return res.status(200).json({
+                success: true,
+                data: result.data,
+                message: result.message
+            });
+        } else {
+            return res.status(400).json({
+                success: false,
+                message: result.message,
+                error: result.error
+            });
+        }
+        
+    } catch (error) {
+        console.error("Error in getAllUsers controller:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
 const getUserById = async (req, res) => {
     const id = req.params.id;
 
@@ -144,5 +215,6 @@ module.exports = {
     getUserById,
     createUser,
     updateUser,
-    deleteUser
+    deleteUser,
+    getAllUsers
 }
