@@ -65,7 +65,6 @@ model AlumniDetails {
 model Job {
   id              String     @id @default(uuid())
   user            User       @relation(fields: [user_id], references: [id])
-  user_id         String
   job_title       String
   job_description String
   designation     String
