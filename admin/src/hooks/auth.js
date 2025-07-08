@@ -2,10 +2,10 @@ const BASE_URL = "http://localhost:5000"
 import axios from "axios"
 import LocalStorage from "../utils/localStorage"
 class Auth{
-    async login(username, password){
-        const response = await axios.post(`${BASE_URL}/auth/admin/login`, { username, password })
+    async login(email, password){
+        const response = await axios.post(`${BASE_URL}/auth/admin/login`, { email, password })
         if(response.status === 200){
-            LocalStorage.setItem("email", username)
+            LocalStorage.setItem("email", email)
             LocalStorage.setItem("password", password)
             return true
         }
