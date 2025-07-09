@@ -33,7 +33,7 @@ class Student {
             const email = LocalStorage.getItem("email");
             const password = LocalStorage.getItem("password");
             
-            const response = await axios.post(`${BASE_URL}/user/all`, { 
+            const response = await axios.get(`${BASE_URL}/user/all`, { 
                 page, limit , admin_email:email, admin_password:password,role:"student" }
             );
             
