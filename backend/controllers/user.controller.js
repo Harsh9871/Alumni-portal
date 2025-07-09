@@ -1,14 +1,16 @@
 const userService = require('../services/user.service');
 const getAllUsers = async (req, res) => {
     try {
-        
-        // Extract query parameters
+        // Extract from request body since this is a POST request
+        console.log('Request body:', req.body);
         const {
             role: filterRole,
             search,
             page = 1,
-            limit = 10
-        } = req.query;
+            limit = 10,
+            admin_email,
+            admin_password
+        } = req.body;
         
         // Validate pagination parameters
         const pageNum = parseInt(page);
