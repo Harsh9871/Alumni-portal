@@ -2,6 +2,7 @@
 const dotenv = require('dotenv');
 dotenv.config();
 module.exports = function (req, res, next) {
+    console.log("req.body from admin auth middleware",req.body);
   const admin_email = req.body.admin_email;
   const admin_password = req.body.admin_password;
   if (!admin_email || !admin_password) {
