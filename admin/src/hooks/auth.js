@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:5000"
+const BASE_URL = "https://alumni-project-backend.onrender.com/"
 import axios from "axios"
 import LocalStorage from "../utils/localStorage"
 
