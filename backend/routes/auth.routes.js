@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller.js');
 const adminMiddleware = require('../middlewares/admin.auth.middleware.js');
-
+const { generateToken } =    require('../utils/jwt');
 router.post('/signup', adminMiddleware, authController.signup);
 router.post('/login', authController.login);
 router.post("/admin/login",(req,res)=>{
@@ -17,8 +17,12 @@ router.post("/admin/login",(req,res)=>{
             "MSG":"Invalid credentials"
         })
     }
+    const token = generateToken({
+        email:req.body.email,
+    })
     res.status(200).json({
-        "MSG":"Sucess"
+        "MSG":"Sucess",
+        token
     })
 })
 module.exports = router;
