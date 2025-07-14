@@ -3,10 +3,9 @@ import { Navigate } from "react-router-dom";
 import LocalStorage from "../../utils/localStorage"; // or use localStorage directly
 
 const ProtectedRoute = ({ children }) => {
-  const email = LocalStorage.getItem("email");
-  const password = LocalStorage.getItem("password");
+  const token = LocalStorage.getItem("token");
 
-  if (!email || !password) {
+  if (!token) {
     return <Navigate to="/login" replace />;
   }
 

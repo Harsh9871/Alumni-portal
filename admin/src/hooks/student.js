@@ -3,17 +3,20 @@ import axios from "axios"
 import LocalStorage from "../utils/localStorage"
 
 class Student {
+    // Helper method to get auth headers
+    getAuthHeaders() {
+        const token = LocalStorage.getItem("token")
+        return token ? { 'Authorization': `Bearer ${token}` } : {}
+    }
+
     async signup(user_id, password, role) {
         try {
-            const email = LocalStorage.getItem("email");
-            const adminPassword = LocalStorage.getItem("password");
-            
             const response = await axios.post(`${BASE_URL}/auth/signup`, {
                 user_id,
                 password,
-                role,
-                admin_email: email,
-                admin_password: adminPassword
+                role
+            }, {
+                headers: this.getAuthHeaders()
             });
             
             if (response.status === 201) {
@@ -34,15 +37,7 @@ class Student {
             const search = filter.search || '';
             const gender = filter.gender || '';
             
-            const email = LocalStorage.getItem("email");
-            const password = LocalStorage.getItem("password");
-            
-            const params = { 
-                page, 
-                limit, 
-                admin_email: email, 
-                admin_password: password
-            };
+            const params = { page, limit };
 
             // Add optional filters
             if (role && role !== 'ALL') {
@@ -55,7 +50,10 @@ class Student {
                 params.gender = gender;
             }
             
-            const response = await axios.get(`${BASE_URL}/user/all`, { params });
+            const response = await axios.get(`${BASE_URL}/user/all`, { 
+                params,
+                headers: this.getAuthHeaders()
+            });
             
             if (response.status === 200) {
                 return response.data;
@@ -69,14 +67,8 @@ class Student {
 
     async getStudentById(id) {
         try {
-            const email = LocalStorage.getItem("email");
-            const password = LocalStorage.getItem("password");
-            
             const response = await axios.get(`${BASE_URL}/user/${id}`, {
-                params: { 
-                    admin_email: email, 
-                    admin_password: password
-                }
+                headers: this.getAuthHeaders()
             });
             
             if (response.status === 200) {
@@ -91,13 +83,8 @@ class Student {
 
     async updateStudent(id, updateData) {
         try {
-            const email = LocalStorage.getItem("email");
-            const password = LocalStorage.getItem("password");
-            
-            const response = await axios.put(`${BASE_URL}/user/${id}`, {
-                ...updateData,
-                admin_email: email,
-                admin_password: password
+            const response = await axios.put(`${BASE_URL}/user/${id}`, updateData, {
+                headers: this.getAuthHeaders()
             });
             
             if (response.status === 200) {
@@ -112,14 +99,8 @@ class Student {
 
     async deleteStudent(id) {
         try {
-            const email = LocalStorage.getItem("email");
-            const password = LocalStorage.getItem("password");
-            
             const response = await axios.delete(`${BASE_URL}/user/${id}`, {
-                data: {
-                    admin_email: email,
-                    admin_password: password
-                }
+                headers: this.getAuthHeaders()
             });
             
             if (response.status === 200) {
@@ -151,13 +132,10 @@ class Student {
 
     async bulkDelete(ids) {
         try {
-            const email = LocalStorage.getItem("email");
-            const password = LocalStorage.getItem("password");
-            
             const response = await axios.post(`${BASE_URL}/user/bulk-delete`, {
-                ids,
-                admin_email: email,
-                admin_password: password
+                ids
+            }, {
+                headers: this.getAuthHeaders()
             });
             
             if (response.status === 200) {
@@ -172,15 +150,9 @@ class Student {
 
     async exportStudents(format = 'csv') {
         try {
-            const email = LocalStorage.getItem("email");
-            const password = LocalStorage.getItem("password");
-            
             const response = await axios.get(`${BASE_URL}/user/export`, {
-                params: {
-                    format,
-                    admin_email: email,
-                    admin_password: password
-                },
+                params: { format },
+                headers: this.getAuthHeaders(),
                 responseType: 'blob'
             });
             
@@ -196,14 +168,8 @@ class Student {
 
     async getStudentStats() {
         try {
-            const email = LocalStorage.getItem("email");
-            const password = LocalStorage.getItem("password");
-            
             const response = await axios.get(`${BASE_URL}/user/stats`, {
-                params: {
-                    admin_email: email,
-                    admin_password: password
-                }
+                headers: this.getAuthHeaders()
             });
             
             if (response.status === 200) {
