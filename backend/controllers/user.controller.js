@@ -1,8 +1,8 @@
 const userService = require('../services/user.service');
+
 const getAllUsers = async (req, res) => {
     try {
-        
-        // Extract query parameters
+        // For GET request, extract from query params
         const {
             role: filterRole,
             search,
@@ -71,6 +71,7 @@ const getAllUsers = async (req, res) => {
         });
     }
 };
+
 const getUserById = async (req, res) => {
     const id = req.params.id;
 
@@ -131,21 +132,22 @@ const getUserById = async (req, res) => {
     }
 };
 
-
 const createUser = async (req, res) => {
     const userData = req.body;
     let id = req.user.id;
     let role = req.user.role;
+    
     try {
-        const result = await userService.createUser(userData, id , role);
-        console.log("User created controller :", result);
+        const result = await userService.createUser(userData, id, role);
+        console.log("User created controller:", result);
+        
         if (result.success) {
             res.status(201).json({
                 success: true,
                 message: result.message
             });
         } else {
-            res.status(500).json({
+            res.status(400).json({
                 success: false,
                 message: result.message,
                 error: result.error
@@ -161,20 +163,28 @@ const createUser = async (req, res) => {
     }
 };
 
-const updateUser = async (req, res) =>{
+const updateUser = async (req, res) => {
     let id = req.user.id;
     let role = req.user.role;
     const reqBody = req.body;
+    
     try {
-        const result = await userService.updateUser(reqBody, id , role);
-        console.log("User updated controller :", result);
+        const result = await userService.updateUser(reqBody, id, role);
+        console.log("User updated controller:", result);
+        
         if (result.success) {
             res.status(200).json({
                 success: true,
                 message: result.message
             });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: result.message,
+                error: result.error
+            });
         }
-    }catch (error) {
+    } catch (error) {
         console.error("Unexpected error updating user:", error);
         return res.status(500).json({
             success: false,
@@ -184,24 +194,26 @@ const updateUser = async (req, res) =>{
     }
 }
 
-const deleteUser = async (req, res) =>{
+const deleteUser = async (req, res) => {
     let id = req.user.id;
+    
     try {
         const result = await userService.deleteUser(id);
-        console.log("User deleted controller :", result);
+        console.log("User deleted controller:", result);
+        
         if (result.success) {
             res.status(200).json({
                 success: true,
-            })
-        }
-        else{
-            res.status(500).json({
+                message: result.message
+            });
+        } else {
+            res.status(400).json({
                 success: false,
                 message: result.message,
                 error: result.error
             });
         }
-    }catch (error) {
+    } catch (error) {
         console.error("Unexpected error deleting user:", error);
         return res.status(500).json({
             success: false,

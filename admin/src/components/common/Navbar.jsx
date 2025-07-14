@@ -1,12 +1,17 @@
-import React from 'react'
+import React, { memo } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 
-const Navbar = () => {
+const Navbar = memo(() => {
+  const location = useLocation();
+
+  const isActive = (path) => location.pathname === path;
+
   return (
     <div className="bg-indigo-600 shadow-md">
       <nav className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-3">
           <div className="flex items-center">
-            <a href="/" className="flex items-center">
+            <Link to="/" className="flex items-center">
               <svg 
                 className="h-8 w-8 text-white" 
                 fill="none" 
@@ -21,29 +26,41 @@ const Navbar = () => {
                 />
               </svg>
               <span className="ml-2 text-white font-bold text-xl">EduConnect</span>
-            </a>
+            </Link>
           </div>
 
           {/* Navigation links on the right */}
           <div className="hidden md:flex space-x-8">
-            <a 
-              href="/" 
-              className="text-white hover:text-indigo-200 transition-colors duration-200 font-medium"
+            <Link 
+              to="/" 
+              className={`transition-colors duration-200 font-medium ${
+                isActive('/') 
+                  ? 'text-indigo-200 border-b-2 border-indigo-200 pb-1' 
+                  : 'text-white hover:text-indigo-200'
+              }`}
             >
               Home
-            </a>
-            <a 
-              href="/student" 
-              className="text-white hover:text-indigo-200 transition-colors duration-200 font-medium"
+            </Link>
+            <Link 
+              to="/student" 
+              className={`transition-colors duration-200 font-medium ${
+                isActive('/student') 
+                  ? 'text-indigo-200 border-b-2 border-indigo-200 pb-1' 
+                  : 'text-white hover:text-indigo-200'
+              }`}
             >
               Student
-            </a>
-            <a 
-              href="/alumni" 
-              className="text-white hover:text-indigo-200 transition-colors duration-200 font-medium"
+            </Link>
+            <Link 
+              to="/alumni" 
+              className={`transition-colors duration-200 font-medium ${
+                isActive('/alumni') 
+                  ? 'text-indigo-200 border-b-2 border-indigo-200 pb-1' 
+                  : 'text-white hover:text-indigo-200'
+              }`}
             >
               Alumni
-            </a>
+            </Link>
           </div>
 
           {/* Mobile menu button (optional) */}
@@ -67,7 +84,9 @@ const Navbar = () => {
         </div>
       </nav>
     </div>
-  )
-}
+  );
+});
 
-export default Navbar   
+Navbar.displayName = "Navbar";
+
+export default Navbar;
