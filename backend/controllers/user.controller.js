@@ -223,10 +223,155 @@ const deleteUser = async (req, res) => {
     }
 }
 
+// Admin functions - these will be protected by admin middleware
+const adminCreateUser = async (req, res) => {
+    const userData = req.body;
+    
+    try {
+        // Validate required fields
+        if (!userData.user_id || !userData.role) {
+            return res.status(400).json({
+                success: false,
+                message: "user_id and role are required fields"
+            });
+        }
+        
+        // Validate role
+        const validRoles = ['STUDENT', 'ALUMNI'];
+        if (!validRoles.includes(userData.role.toUpperCase())) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid role. Must be either STUDENT or ALUMNI"
+            });
+        }
+        
+        const result = await userService.createUser(userData, userData.user_id, userData.role.toUpperCase());
+        console.log("Admin created user controller:", result);
+        
+        if (result.success) {
+            res.status(201).json({
+                success: true,
+                message: result.message
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: result.message,
+                error: result.error
+            });
+        }
+    } catch (error) {
+        console.error("Unexpected error in admin create user:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
+
+const adminUpdateUser = async (req, res) => {
+    const userId = req.params.id; // Get user ID from URL params
+    const updateData = req.body;
+    
+    try {
+        // Validate user ID
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "User ID is required"
+            });
+        }
+        
+        // Get user details first to determine role
+        const user = await userService.getUserById(userId);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+        
+        const result = await userService.updateUser(updateData, userId, user.role);
+        console.log("Admin updated user controller:", result);
+        
+        if (result.success) {
+            res.status(200).json({
+                success: true,
+                message: result.message
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: result.message,
+                error: result.error
+            });
+        }
+    } catch (error) {
+        console.error("Unexpected error in admin update user:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
+
+const adminDeleteUser = async (req, res) => {
+    const userId = req.params.id; // Get user ID from URL params
+    
+    try {
+        // Validate user ID
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "User ID is required"
+            });
+        }
+        
+        // Check if user exists first
+        const user = await userService.getUserById(userId);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+        
+        const result = await userService.deleteUser(user.id); // Use the internal ID for deletion
+        console.log("Admin deleted user controller:", result);
+        
+        if (result.success) {
+            res.status(200).json({
+                success: true,
+                message: result.message
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: result.message,
+                error: result.error
+            });
+        }
+    } catch (error) {
+        console.error("Unexpected error in admin delete user:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     getUserById,
     createUser,
     updateUser,
     deleteUser,
-    getAllUsers
+    getAllUsers,
+    adminCreateUser,
+    adminDeleteUser,
+    adminUpdateUser
 }

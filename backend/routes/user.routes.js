@@ -10,5 +10,8 @@ router.get('/:id', userController.getUserById);
 router.post('/', verifyToken, userController.createUser);
 router.put('/', verifyToken, userController.updateUser);
 router.delete('/', verifyToken, userController.deleteUser);
+router.post('/admin/', adminMiddleware, userController.adminCreateUser);
+router.put('/admin/:id', adminMiddleware, userController.adminUpdateUser);
+router.delete('/admin/:id', adminMiddleware, userController.adminDeleteUser);
 
 module.exports = router;
