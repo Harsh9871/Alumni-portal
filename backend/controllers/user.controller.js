@@ -329,6 +329,7 @@ const adminDeleteUser = async (req, res) => {
                 message: "User ID is required"
             });
         }
+        console.log("Admin delete user controller:", userId);
         
         // Check if user exists first
         const user = await userService.getUserById(userId);

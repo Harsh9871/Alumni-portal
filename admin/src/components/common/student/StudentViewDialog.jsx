@@ -15,6 +15,8 @@ import {
   Button,
   Divider
 } from '@mui/material';
+import { GitHub, LinkedIn } from '@mui/icons-material';
+
 import { 
   Close, 
   Person, 
