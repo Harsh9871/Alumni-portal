@@ -162,16 +162,22 @@ const getAllUsers = async (filters = {}) => {
         };
     }
 };
-const getUserById = async (id) => {
+const getUserById = async (userId) => {
     try {
-        const user = await prisma.user.findUnique({
-            where: { user_id: id },
+        console.log("User ID received:", userId);
+        const user = await prisma.user.findFirst({
+            where: {
+              OR: [
+                { id: userId },
+                { user_id: userId }
+              ]
+            },
             include: {
-                student: true,
-                alumni: true
+              student: true,
+              alumni: true
             }
-        });
-
+          });
+          
         if (!user) {
             throw new Error('User not found');
         }

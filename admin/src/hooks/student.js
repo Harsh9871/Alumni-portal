@@ -1,4 +1,5 @@
-const BASE_URL = "https://alumni-project-backend.onrender.com"
+
+const BASE_URL = import.meta.env.VITE_BASE_URL || "https://alumni-project-backend.onrender.com"
 import axios from "axios"
 import LocalStorage from "../utils/localStorage"
 
@@ -83,7 +84,7 @@ class Student {
 
     async updateStudent(id, updateData) {
         try {
-            const response = await axios.put(`${BASE_URL}/user/${id}`, updateData, {
+            const response = await axios.put(`${BASE_URL}/user/admin/${id}`, updateData, {
                 headers: this.getAuthHeaders()
             });
             
@@ -99,7 +100,7 @@ class Student {
 
     async deleteStudent(id) {
         try {
-            const response = await axios.delete(`${BASE_URL}/user/${id}`, {
+            const response = await axios.delete(`${BASE_URL}/user/admin/${id}`, {
                 headers: this.getAuthHeaders()
             });
             
