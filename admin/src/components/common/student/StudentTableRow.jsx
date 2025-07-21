@@ -1,33 +1,36 @@
 import React from 'react';
-import { 
-  TableRow, 
-  TableCell, 
-  Checkbox, 
-  Badge, 
-  Avatar, 
-  Box, 
-  Typography, 
-  Chip, 
-  Stack, 
-  IconButton, 
+import {
+  TableRow,
+  TableCell,
+  Checkbox,
+  Badge,
+  Avatar,
+  Box,
+  Typography,
+  Chip,
+  Stack,
+  IconButton,
   Tooltip,
   alpha,
   useTheme
 } from '@mui/material';
 import { Email, Phone, Work, TrendingUp, MoreVert } from '@mui/icons-material';
 
-const StudentTableRow = ({ 
-  student, 
-  isSelected, 
-  onSelect, 
-  onMenuOpen 
+const StudentTableRow = ({
+  student,
+  isSelected,
+  onSelect,
+  onMenuOpen
 }) => {
   const theme = useTheme();
-  
+
   return (
     <TableRow
       hover
-      onClick={() => onSelect(student.id)}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect(student.id);
+      }}
       role="checkbox"
       aria-checked={isSelected}
       tabIndex={-1}
@@ -65,8 +68,8 @@ const StudentTableRow = ({
           <Avatar
             src={student.profile?.profile_picture_url}
             alt={student.profile?.full_name}
-            sx={{ 
-              width: 45, 
+            sx={{
+              width: 45,
               height: 45,
               border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`
             }}
@@ -96,7 +99,7 @@ const StudentTableRow = ({
           color={student.role === 'STUDENT' ? 'primary' : 'secondary'}
           variant="filled"
           size="small"
-          sx={{ 
+          sx={{
             fontWeight: 'bold',
             textTransform: 'uppercase',
             letterSpacing: '0.5px'
@@ -153,6 +156,7 @@ const StudentTableRow = ({
         <IconButton
           onClick={(event) => {
             event.stopPropagation();
+            console.log('Opening menu for student:', student); // Debug log
             onMenuOpen(event, student);
           }}
         >
