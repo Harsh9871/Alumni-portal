@@ -172,7 +172,7 @@ const AlumniPage = () => {
 
   const handleDeleteStudent = async () => {
     try {
-      const response = await studentAPI.deleteStudent(selectedStudent.id);
+      const response = await studentAPI.deleteStudent(selectedStudent.user_id);
       if (response && response.success) {
         showSnackbar('Student deleted successfully', 'success');
         fetchStudents(); // Refresh the data

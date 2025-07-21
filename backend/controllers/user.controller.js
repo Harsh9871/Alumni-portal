@@ -292,7 +292,19 @@ const adminUpdateUser = async (req, res) => {
                 message: "User not found"
             });
         }
-        
+        // Before attempting update, check if details exist
+        if (user.role === 'STUDENT' && !user.student) {
+            return res.status(404).json({
+                success: false,
+                message: "Student details not found - create them first"
+            });
+        }
+        if (user.role === 'ALUMNI' && !user.alumni) {
+            return res.status(404).json({
+                success: false,
+                message: "Alumni details not found - create them first"
+            });
+        }
         const result = await userService.updateUser(updateData, userId, user.role);
         console.log("Admin updated user controller:", result);
         

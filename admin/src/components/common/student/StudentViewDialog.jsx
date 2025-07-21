@@ -17,23 +17,23 @@ import {
 } from '@mui/material';
 import { GitHub, LinkedIn } from '@mui/icons-material';
 
-import { 
-  Close, 
-  Person, 
-  Email, 
-  Phone, 
-  School, 
-  Work, 
-  TrendingUp, 
-  StarBorder, 
-  Business, 
+import {
+  Close,
+  Person,
+  Email,
+  Phone,
+  School,
+  Work,
+  TrendingUp,
+  StarBorder,
+  Business,
   CalendarToday,
   Edit
 } from '@mui/icons-material';
 
-const StudentViewDialog = ({ 
-  open, 
-  onClose, 
+const StudentViewDialog = ({
+  open,
+  onClose,
   student,
   onEdit
 }) => {
@@ -64,10 +64,10 @@ const StudentViewDialog = ({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <Avatar
                 src={student.profile?.profile_picture_url}
-                alt={student.profile?.full_name}
+                alt={student.profile?.full_name || 'User'}
                 sx={{ width: 80, height: 80 }}
               >
-                {student.profile?.full_name?.charAt(0)}
+                {student.profile?.full_name?.charAt(0) || 'U'}
               </Avatar>
               <Box sx={{ flex: 1 }}>
                 <Typography variant="h5" fontWeight="bold" gutterBottom>
@@ -126,7 +126,7 @@ const StudentViewDialog = ({
                   </Stack>
                 </Card>
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Card sx={{ p: 2, height: '75%' }}>
                   <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -156,7 +156,7 @@ const StudentViewDialog = ({
                         variant="outlined"
                       />
                     </Box>
-                    
+
                   </Stack>
                 </Card>
               </Grid>

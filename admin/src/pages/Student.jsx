@@ -37,13 +37,13 @@ import {
   StudentTable,
   StudentTableToolbar,
   StudentTableFilters,
-  StudentViewDialog
+  StudentViewDialog,
+  StudentEditDialog
 } from '../components/common/student';
 import Student from '../hooks/student';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 
 const StudentPage = () => {
-  // Initialize Student API class
   const studentAPI = new Student();
 
   // State management
@@ -64,6 +64,7 @@ const StudentPage = () => {
   
   // Dialog and menu states
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -73,14 +74,13 @@ const StudentPage = () => {
     role: 'STUDENT'
   });
   const [addDialogLoading, setAddDialogLoading] = useState(false);
+  const [editDialogLoading, setEditDialogLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Helper function to get nested object values (moved up before usage)
   const getNestedValue = (obj, path) => {
     return path.split('.').reduce((current, key) => current?.[key], obj) || '';
   };
 
-  // Fetch students data
   const fetchStudents = async () => {
     try {
       setLoading(true);
@@ -109,15 +109,12 @@ const StudentPage = () => {
     }
   };
 
-  // Initial data fetch
   useEffect(() => {
     fetchStudents();
   }, [page, rowsPerPage, roleFilter, genderFilter, searchTerm]);
 
-  // Filter students based on search and filters (now done server-side)
   const filteredStudents = students;
 
-  // Sort students
   const sortedStudents = [...filteredStudents].sort((a, b) => {
     const aValue = getNestedValue(a, orderBy);
     const bValue = getNestedValue(b, orderBy);
@@ -129,7 +126,6 @@ const StudentPage = () => {
     }
   });
 
-  // Calculate stats
   const stats = {
     total: totalCount,
     active: students.filter(s => s.role === 'STUDENT').length,
@@ -175,13 +171,18 @@ const StudentPage = () => {
   };
 
   const handleMenuOpen = (event, student) => {
-    setContextMenu({ mouseX: event.clientX - 2, mouseY: event.clientY - 4 });
-    setSelectedStudent(student);
+    event.stopPropagation(); // Prevent event bubbling
+    console.log('Selected student in menu:', student); // Debug log
+    setContextMenu({ 
+      mouseX: event.clientX - 2, 
+      mouseY: event.clientY - 4 
+    });
+    setSelectedStudent(student); // Make sure student is not null
   };
 
   const handleMenuClose = () => {
     setContextMenu(null);
-    setSelectedStudent(null);
+    // setSelectedStudent(null);
   };
 
   const handleViewStudent = () => {
@@ -190,16 +191,32 @@ const StudentPage = () => {
   };
 
   const handleEditStudent = () => {
-    showSnackbar('Edit functionality not implemented yet', 'info');
+    // Use the student from context menu if available, otherwise fall back to selectedStudent
+    const studentToEdit = contextMenu?.student || selectedStudent;
+    
+    if (!studentToEdit) {
+      console.error('No student available for editing');
+      showSnackbar('No student selected for editing', 'error');
+      return;
+    }
+  
+    console.log('Editing student with ID:', studentToEdit.user_id);
+    setSelectedStudent(studentToEdit); // Explicitly set it again
+    setEditDialogOpen(true);
     handleMenuClose();
   };
-
+  useEffect(() => {
+    return () => {
+      // Cleanup when component unmounts
+      setSelectedStudent(null);
+    };
+  }, []);
   const handleDeleteStudent = async () => {
     try {
-      const response = await studentAPI.deleteStudent(selectedStudent.id);
+      const response = await studentAPI.deleteStudent(selectedStudent.user_id);
       if (response && response.success) {
         showSnackbar('Student deleted successfully', 'success');
-        fetchStudents(); // Refresh the data
+        fetchStudents();
       } else {
         showSnackbar('Failed to delete student', 'error');
       }
@@ -208,6 +225,54 @@ const StudentPage = () => {
     }
     handleMenuClose();
   };
+
+  const handleUpdateStudent = async (updateData) => {
+    const studentToUpdate = selectedStudent;
+    console.log('Attempting to update student:', studentToUpdate);
+    
+    if (!studentToUpdate?.user_id) {
+      console.error('Update attempted without valid student ID');
+      showSnackbar('No valid student selected for update', 'error');
+      return;
+    }
+  
+    try {
+      setEditDialogLoading(true);
+      console.log('Update payload:', {
+        userId: studentToUpdate.user_id,
+        data: updateData
+      });
+      
+      const response = await studentAPI.updateStudent(studentToUpdate.user_id, {
+        profile: {
+          full_name: updateData.full_name,
+          email_address: updateData.email_address,
+          mobile_number: updateData.mobile_number,
+          gender: updateData.gender,
+          bio: updateData.bio,
+          passing_batch: updateData.passing_batch,
+          github: updateData.github,
+          linked_in: updateData.linked_in
+        },
+        role: updateData.role
+      });
+      
+      if (response?.success) {
+        showSnackbar('Student updated successfully', 'success');
+        setEditDialogOpen(false);
+        fetchStudents();
+      } else {
+        showSnackbar(response?.message || 'Update failed', 'error');
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      showSnackbar(`Update failed: ${error.message}`, 'error');
+    } finally {
+      setEditDialogLoading(false);
+    }
+  };
+  
+  
 
   const handleAddStudent = () => {
     setAddDialogOpen(true);
@@ -243,7 +308,7 @@ const StudentPage = () => {
       if (response && response.success) {
         showSnackbar('Student added successfully', 'success');
         handleAddDialogClose();
-        fetchStudents(); // Refresh the data
+        fetchStudents();
       } else {
         showSnackbar(response?.message || 'Failed to add student', 'error');
       }
@@ -270,7 +335,7 @@ const StudentPage = () => {
     setSearchTerm('');
     setRoleFilter('STUDENT');
     setGenderFilter('ALL');
-    setPage(0); // Reset to first page
+    setPage(0);
   };
 
   const showSnackbar = (message, severity = 'success') => {
@@ -283,189 +348,198 @@ const StudentPage = () => {
 
   return (
     <ProtectedRoute>
-    <Box sx={{ p: 3 }}>
-      {/* Stats Cards */}
-      <StudentStatsCards stats={stats} />
+      <Box sx={{ p: 3 }}>
+        {/* Stats Cards */}
+        <StudentStatsCards stats={stats} />
 
-      {/* Main Content */}
-      <Paper sx={{ width: '100%', mb: 2, borderRadius: 2 }}>
-        {/* Toolbar */}
-        <StudentTableToolbar
-          selectedCount={selected.length}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          onToggleFilters={() => setShowFilters(!showFilters)}
-          onRefresh={handleRefresh}
-          onAddStudent={handleAddStudent}
-        />
+        {/* Main Content */}
+        <Paper sx={{ width: '100%', mb: 2, borderRadius: 2 }}>
+          {/* Toolbar */}
+          <StudentTableToolbar
+            selectedCount={selected.length}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onToggleFilters={() => setShowFilters(!showFilters)}
+            onRefresh={handleRefresh}
+            onAddStudent={handleAddStudent}
+          />
 
-        {/* Filters */}
-        <Collapse in={showFilters}>
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-            <StudentTableFilters
-              roleFilter={roleFilter}
-              genderFilter={genderFilter}
-              onRoleFilterChange={setRoleFilter}
-              onGenderFilterChange={setGenderFilter}
-              onClearFilters={handleClearFilters}
-              filteredCount={totalCount}
-              totalCount={totalCount}
-            />
-          </Box>
-        </Collapse>
+          {/* Filters */}
+          <Collapse in={showFilters}>
+            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+              <StudentTableFilters
+                roleFilter={roleFilter}
+                genderFilter={genderFilter}
+                onRoleFilterChange={setRoleFilter}
+                onGenderFilterChange={setGenderFilter}
+                onClearFilters={handleClearFilters}
+                filteredCount={totalCount}
+                totalCount={totalCount}
+              />
+            </Box>
+          </Collapse>
 
-        {/* Table */}
-        <StudentTable
-          students={sortedStudents}
-          loading={loading}
-          error={error}
-          orderBy={orderBy}
-          order={order}
-          onSort={handleSort}
-          selected={selected}
-          onSelectAll={handleSelectAll}
-          onSelect={handleSelect}
-          onMenuOpen={handleMenuOpen}
-          page={page}
-          rowsPerPage={rowsPerPage}
-          totalCount={totalCount}
-          onPageChange={setPage}
-          onRowsPerPageChange={setRowsPerPage}
-        />
-      </Paper>
+          {/* Table */}
+          <StudentTable
+            students={sortedStudents}
+            loading={loading}
+            error={error}
+            orderBy={orderBy}
+            order={order}
+            onSort={handleSort}
+            selected={selected}
+            onSelectAll={handleSelectAll}
+            onSelect={handleSelect}
+            onMenuOpen={handleMenuOpen}
+            page={page}
+            rowsPerPage={rowsPerPage}
+            totalCount={totalCount}
+            onPageChange={setPage}
+            onRowsPerPageChange={setRowsPerPage}
+          />
+        </Paper>
 
-      {/* Context Menu */}
-      <Menu
-        open={contextMenu !== null}
-        onClose={handleMenuClose}
-        anchorReference="anchorPosition"
-        anchorPosition={
-          contextMenu !== null
-            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
-            : undefined
-        }
-      >
-        <MenuItem onClick={handleViewStudent}>
-          <ListItemIcon>
-            <Visibility fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>View Details</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleEditStudent}>
-          <ListItemIcon>
-            <Edit fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Edit Student</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleDeleteStudent}>
-          <ListItemIcon>
-            <Delete fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Delete Student</ListItemText>
-        </MenuItem>
-      </Menu>
-
-      {/* View Dialog */}
-      <StudentViewDialog
-        open={viewDialogOpen}
-        onClose={() => setViewDialogOpen(false)}
-        student={selectedStudent}
-        onEdit={handleEditStudent}
-      />
-
-      {/* Add Student Dialog */}
-      <Dialog
-        open={addDialogOpen}
-        onClose={handleAddDialogClose}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          component: 'form',
-          onSubmit: handleAddStudentSubmit
-        }}
-      >
-        <DialogTitle>Add New Student</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <TextField
-              label="User ID"
-              value={addStudentData.user_id}
-              onChange={(e) => handleAddStudentInputChange('user_id', e.target.value)}
-              fullWidth
-              required
-              disabled={addDialogLoading}
-              helperText="Enter a unique user ID for the student"
-            />
-            
-            <TextField
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
-              value={addStudentData.password}
-              onChange={(e) => handleAddStudentInputChange('password', e.target.value)}
-              fullWidth
-              required
-              disabled={addDialogLoading}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
-            />
-            
-            <FormControl fullWidth>
-              <InputLabel>Role</InputLabel>
-              <Select
-                value={addStudentData.role}
-                onChange={(e) => handleAddStudentInputChange('role', e.target.value)}
-                label="Role"
-                disabled={addDialogLoading}
-              >
-                <SelectMenuItem value="STUDENT">Student</SelectMenuItem>
-                <SelectMenuItem value="ALUMNI">Alumni</SelectMenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={handleAddDialogClose}
-            disabled={addDialogLoading}
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="submit"
-            variant="contained"
-            disabled={addDialogLoading}
-            startIcon={addDialogLoading ? <CircularProgress size={20} /> : null}
-          >
-            {addDialogLoading ? 'Adding...' : 'Add Student'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-      >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
+        {/* Context Menu */}
+        <Menu
+          open={contextMenu !== null}
+          onClose={handleMenuClose}
+          anchorReference="anchorPosition"
+          anchorPosition={
+            contextMenu !== null
+              ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+              : undefined
+          }
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+          <MenuItem onClick={handleViewStudent}>
+            <ListItemIcon>
+              <Visibility fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>View Details</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={handleEditStudent}>
+            <ListItemIcon>
+              <Edit fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Edit Student</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={handleDeleteStudent}>
+            <ListItemIcon>
+              <Delete fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Delete Student</ListItemText>
+          </MenuItem>
+        </Menu>
+
+        {/* View Dialog */}
+        <StudentViewDialog
+          open={viewDialogOpen}
+          onClose={() => setViewDialogOpen(false)}
+          student={selectedStudent}
+          onEdit={handleEditStudent}
+        />
+
+        {/* Edit Dialog */}
+        <StudentEditDialog
+          open={editDialogOpen}
+          onClose={() => setEditDialogOpen(false)}
+          student={selectedStudent}
+          onSubmit={handleUpdateStudent}
+          loading={editDialogLoading}
+        />
+
+        {/* Add Student Dialog */}
+        <Dialog
+          open={addDialogOpen}
+          onClose={handleAddDialogClose}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            component: 'form',
+            onSubmit: handleAddStudentSubmit
+          }}
+        >
+          <DialogTitle>Add New Student</DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+              <TextField
+                label="User ID"
+                value={addStudentData.user_id}
+                onChange={(e) => handleAddStudentInputChange('user_id', e.target.value)}
+                fullWidth
+                required
+                disabled={addDialogLoading}
+                helperText="Enter a unique user ID for the student"
+              />
+              
+              <TextField
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                value={addStudentData.password}
+                onChange={(e) => handleAddStudentInputChange('password', e.target.value)}
+                fullWidth
+                required
+                disabled={addDialogLoading}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+              
+              <FormControl fullWidth>
+                <InputLabel>Role</InputLabel>
+                <Select
+                  value={addStudentData.role}
+                  onChange={(e) => handleAddStudentInputChange('role', e.target.value)}
+                  label="Role"
+                  disabled={addDialogLoading}
+                >
+                  <SelectMenuItem value="STUDENT">Student</SelectMenuItem>
+                  <SelectMenuItem value="ALUMNI">Alumni</SelectMenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button 
+              onClick={handleAddDialogClose}
+              disabled={addDialogLoading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit"
+              variant="contained"
+              disabled={addDialogLoading}
+              startIcon={addDialogLoading ? <CircularProgress size={20} /> : null}
+            >
+              {addDialogLoading ? 'Adding...' : 'Add Student'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Snackbar */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+        >
+          <Alert
+            onClose={handleCloseSnackbar}
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
     </ProtectedRoute>
   );
 };

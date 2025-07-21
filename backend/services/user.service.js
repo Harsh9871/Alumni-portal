@@ -276,7 +276,7 @@ const updateUser = async (reqBody, id, role) => {
 
         if (role === "ALUMNI") {
             const updateData = {};
-
+            
             // Only update fields that are provided
             if (reqBody.full_name !== undefined) updateData.full_name = reqBody.full_name;
             if (reqBody.bio !== undefined) updateData.bio = reqBody.bio;
