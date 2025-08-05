@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 const Navbar = memo(() => {
   const location = useLocation();
+  const isAuthenticated = !!localStorage.getItem('token');
 
   const isActive = (path) => location.pathname === path;
 
@@ -29,8 +30,8 @@ const Navbar = memo(() => {
             </Link>
           </div>
 
-          {/* Navigation links on the right */}
-          <div className="hidden md:flex space-x-8">
+          {/* Navigation links */}
+          <div className="hidden md:flex space-x-8 items-center">
             <Link 
               to="/" 
               className={`transition-colors duration-200 font-medium ${
@@ -41,29 +42,34 @@ const Navbar = memo(() => {
             >
               Home
             </Link>
-            <Link 
-              to="/student" 
-              className={`transition-colors duration-200 font-medium ${
-                isActive('/student') 
-                  ? 'text-indigo-200 border-b-2 border-indigo-200 pb-1' 
-                  : 'text-white hover:text-indigo-200'
-              }`}
-            >
-              Student
-            </Link>
-            <Link 
-              to="/alumni" 
-              className={`transition-colors duration-200 font-medium ${
-                isActive('/alumni') 
-                  ? 'text-indigo-200 border-b-2 border-indigo-200 pb-1' 
-                  : 'text-white hover:text-indigo-200'
-              }`}
-            >
-              Alumni
-            </Link>
+            
+            {isAuthenticated ? (
+              <>
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('token');
+                    window.location.reload();
+                  }}
+                  className="text-white hover:text-indigo-200 transition-colors duration-200 font-medium"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link 
+                to="/login" 
+                className={`transition-colors duration-200 font-medium ${
+                  isActive('/login') 
+                    ? 'text-indigo-200 border-b-2 border-indigo-200 pb-1' 
+                    : 'text-white hover:text-indigo-200'
+                }`}
+              >
+                Login
+              </Link>
+            )}
           </div>
 
-          {/* Mobile menu button (optional) */}
+          {/* Mobile menu button */}
           <div className="md:hidden">
             <button className="text-white focus:outline-none">
               <svg 
