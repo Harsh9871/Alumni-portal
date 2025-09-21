@@ -16,73 +16,53 @@ class JobsService {
         joining_date,
         status,
         open_till,
-        user_id
+        user_id,
+        page = 1,
+        limit = 10,
+        sortBy = 'joining_date',
+        sortOrder = 'desc'
       } = filter;
 
-      // Build where clause dynamically, only including non-empty filters
+      // Build where clause dynamically
       const whereClause = {
         is_deleted: false, // Always exclude deleted jobs
+        ...(status && { status }),
+        ...(user_id && { user_id })
       };
 
-      if (job_title) {
-        whereClause.job_title = {
-          contains: job_title,
-          mode: 'insensitive'
-        };
-      }
+      // Text search filters
+      const searchFilters = {
+        job_title: job_title?.trim(),
+        job_description: job_description?.trim(),
+        designation: designation?.trim(),
+        location: location?.trim(),
+        mode: mode?.trim(),
+        experience: experience?.trim(),
+        salary: salary?.trim()
+      };
 
-      if (job_description) {
-        whereClause.job_description = {
-          contains: job_description,
-          mode: 'insensitive'
-        };
-      }
+      // Add text search conditions
+      Object.entries(searchFilters).forEach(([field, value]) => {
+        if (value) {
+          whereClause[field] = {
+            contains: value,
+            mode: 'insensitive'
+          };
+        }
+      });
 
-      if (designation) {
-        whereClause.designation = {
-          contains: designation,
-          mode: 'insensitive'
-        };
-      }
-
-      if (location) {
-        whereClause.location = {
-          contains: location,
-          mode: 'insensitive'
-        };
-      }
-
-      if (mode) {
-        whereClause.mode = {
-          contains: mode,
-          mode: 'insensitive'
-        };
-      }
-
-      if (experience) {
-        whereClause.experience = {
-          contains: experience,
-          mode: 'insensitive'
-        };
-      }
-
-      if (salary) {
-        whereClause.salary = {
-          contains: salary,
-          mode: 'insensitive'
-        };
-      }
-
+      // Numeric filter for vacancy
       if (vacancy) {
-        whereClause.vacancy = parseInt(vacancy);
+        whereClause.vacancy = {
+          equals: parseInt(vacancy)
+        };
       }
 
+      // Date filters
       if (joining_date) {
-        whereClause.joining_date = new Date(joining_date);
-      }
-
-      if (status) {
-        whereClause.status = status;
+        whereClause.joining_date = {
+          gte: new Date(joining_date)
+        };
       }
 
       if (open_till) {
@@ -91,40 +71,75 @@ class JobsService {
         };
       }
 
-      if (user_id) {
-        whereClause.user_id = user_id;
-      }
+      // Pagination
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      const skip = (pageNum - 1) * limitNum;
 
-      const jobs = await prisma.job.findMany({
-        where: whereClause,
-        include: {
-          user: {
-            include: {
-              alumni: {
-                select: {
-                  full_name: true,
-                  email_address: true,
-                  mobile_number: true,
-                  passing_batch: true
+      const [jobs, totalCount] = await Promise.all([
+        prisma.job.findMany({
+          where: whereClause,
+          include: {
+            user: {
+              include: {
+                alumni: {
+                  select: {
+                    full_name: true,
+                    email_address: true,
+                    mobile_number: true,
+                    passing_batch: true,
+                    bio: true
+                  }
                 }
+              },
+              select: {
+                id: true,
+                role: true
+              }
+            },
+            _count: {
+              select: {
+                applications: true
               }
             }
-          }
-        },
-        orderBy: {
-          joining_date: 'desc'
-        }
-      });
+          },
+          orderBy: {
+            [sortBy]: sortOrder
+          },
+          skip,
+          take: limitNum
+        }),
+        prisma.job.count({ where: whereClause })
+      ]);
 
-      return jobs;
+      return {
+        jobs,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(totalCount / limitNum),
+          totalCount,
+          hasNextPage: pageNum < Math.ceil(totalCount / limitNum),
+          hasPrevPage: pageNum > 1
+        },
+        filters: Object.keys(filter).reduce((acc, key) => {
+          if (filter[key] && filter[key] !== '1' && filter[key] !== '10') {
+            acc[key] = filter[key];
+          }
+          return acc;
+        }, {})
+      };
     } catch (error) {
       console.error("Error fetching jobs:", error);
-      throw error;
+      throw new Error(`Failed to fetch jobs: ${error.message}`);
     }
   }
 
   async getJobById(id) {
     try {
+      if (!id || typeof id !== 'string') {
+        throw new Error("Invalid job ID");
+      }
+  
       const job = await prisma.job.findUnique({
         where: {
           id,
@@ -135,37 +150,54 @@ class JobsService {
             include: {
               alumni: {
                 select: {
+                  id: true,
                   full_name: true,
                   email_address: true,
                   mobile_number: true,
                   passing_batch: true,
-                  bio: true
+                  bio: true,
+                  profile_picture_url: true
                 }
               }
             }
           },
           applications: {
+            where: {
+              user: {
+                is_deleted: false
+              }
+            },
             include: {
               user: {
-                include: {
+                select: {
+                  id: true,
+                  role: true,
+                  is_deleted: true,
                   student: {
                     select: {
+                      id: true,
                       full_name: true,
                       email_address: true,
-                      mobile_number: true
+                      mobile_number: true,
+                      profile_picture_url: true,
+                      github: true,
+                      linked_in: true
                     }
                   }
                 }
               }
+            },
+            orderBy: {
+              applied_at: 'desc'
             }
           }
         }
       });
-
+  
       if (!job) {
         throw new Error("Job not found");
       }
-
+  
       return job;
     } catch (error) {
       console.error("Error fetching job by ID:", error);
@@ -191,17 +223,24 @@ class JobsService {
       } = jobData;
 
       // Validate required fields
-      if (!job_title || !job_description || !designation || !location || !mode || !experience || !salary || !vacancy || !joining_date || !status || !open_till || !user_id) {
-        throw new Error("All fields are required");
+      if (!job_title?.trim() || !job_description?.trim() || !designation?.trim() || 
+          !location?.trim() || !mode?.trim() || !experience?.trim() || !salary?.trim() || 
+          !vacancy || !joining_date || !status || !open_till || !user_id) {
+        throw new Error("All job fields are required");
       }
 
       // Validate that user exists and is an alumni
       const user = await prisma.user.findUnique({
-        where: { id: user_id },
-        include: { alumni: true }
+        where: { 
+          id: user_id,
+          is_deleted: false
+        },
+        include: { 
+          alumni: true 
+        }
       });
 
-      if (!user || user.is_deleted) {
+      if (!user) {
         throw new Error("User not found or deactivated");
       }
 
@@ -210,18 +249,18 @@ class JobsService {
       }
 
       if (!user.alumni) {
-        throw new Error("Alumni details not found");
+        throw new Error("Alumni details not found for user");
       }
 
       const newJob = await prisma.job.create({
         data: {
-          job_title,
-          job_description,
-          designation,
-          location,
-          mode,
-          experience,
-          salary,
+          job_title: job_title.trim(),
+          job_description: job_description.trim(),
+          designation: designation.trim(),
+          location: location.trim(),
+          mode: mode.trim(),
+          experience: experience.trim(),
+          salary: salary.trim(),
           vacancy: parseInt(vacancy),
           joining_date: new Date(joining_date),
           status,
@@ -236,7 +275,8 @@ class JobsService {
                   full_name: true,
                   email_address: true,
                   mobile_number: true,
-                  passing_batch: true
+                  passing_batch: true,
+                  profile_picture_url: true
                 }
               }
             }
@@ -253,47 +293,61 @@ class JobsService {
 
   async updateJob(id, jobData, userId) {
     try {
-      const {
-        job_title,
-        job_description,
-        designation,
-        location,
-        mode,
-        experience,
-        salary,
-        vacancy,
-        joining_date,
-        status,
-        open_till
-      } = jobData;
+      if (!id || typeof id !== 'string') {
+        throw new Error("Invalid job ID");
+      }
 
       // Check if job exists and user owns it
-      const existingJob = await prisma.job.findUnique({
-        where: { id, is_deleted: false }
+      const existingJob = await prisma.job.findFirst({
+        where: { 
+          id, 
+          is_deleted: false,
+          user_id: userId
+        }
       });
 
       if (!existingJob) {
-        throw new Error("Job not found");
-      }
-
-      if (existingJob.user_id !== userId) {
-        throw new Error("Unauthorized: You can only update your own jobs");
+        throw new Error("Job not found or unauthorized");
       }
 
       // Build update data object, only including provided fields
       const updateData = {};
       
-      if (job_title !== undefined) updateData.job_title = job_title;
-      if (job_description !== undefined) updateData.job_description = job_description;
-      if (designation !== undefined) updateData.designation = designation;
-      if (location !== undefined) updateData.location = location;
-      if (mode !== undefined) updateData.mode = mode;
-      if (experience !== undefined) updateData.experience = experience;
-      if (salary !== undefined) updateData.salary = salary;
-      if (vacancy !== undefined) updateData.vacancy = parseInt(vacancy);
-      if (joining_date !== undefined) updateData.joining_date = new Date(joining_date);
-      if (status !== undefined) updateData.status = status;
-      if (open_till !== undefined) updateData.open_till = new Date(open_till);
+      const updatableFields = [
+        'job_title', 'job_description', 'designation', 'location', 
+        'mode', 'experience', 'salary', 'vacancy', 'joining_date', 
+        'status', 'open_till'
+      ];
+
+      updatableFields.forEach(field => {
+        if (jobData[field] !== undefined) {
+          if (['job_title', 'job_description', 'designation', 'location', 'mode', 'experience', 'salary']
+              .includes(field)) {
+            updateData[field] = jobData[field].trim();
+          } else if (field === 'vacancy') {
+            updateData[field] = parseInt(jobData[field]);
+          } else if (['joining_date', 'open_till'].includes(field)) {
+            updateData[field] = new Date(jobData[field]);
+          } else {
+            updateData[field] = jobData[field];
+          }
+        }
+      });
+
+      // Validate updated dates
+      if (updateData.joining_date) {
+        const currentDate = new Date();
+        if (updateData.joining_date <= currentDate) {
+          throw new Error("Joining date must be in the future");
+        }
+      }
+
+      if (updateData.open_till) {
+        const currentDate = new Date();
+        if (updateData.open_till <= currentDate) {
+          throw new Error("Open till date must be in the future");
+        }
+      }
 
       const updatedJob = await prisma.job.update({
         where: { id },
@@ -306,9 +360,15 @@ class JobsService {
                   full_name: true,
                   email_address: true,
                   mobile_number: true,
-                  passing_batch: true
+                  passing_batch: true,
+                  profile_picture_url: true
                 }
               }
+            }
+          },
+          _count: {
+            select: {
+              applications: true
             }
           }
         }
@@ -323,22 +383,33 @@ class JobsService {
 
   async deleteJob(id, userId) {
     try {
+      if (!id || typeof id !== 'string') {
+        throw new Error("Invalid job ID");
+      }
+
       // Check if job exists and user owns it
-      const existingJob = await prisma.job.findUnique({
-        where: { id, is_deleted: false }
+      const existingJob = await prisma.job.findFirst({
+        where: { 
+          id, 
+          is_deleted: false,
+          user_id: userId
+        }
       });
 
       if (!existingJob) {
-        throw new Error("Job not found");
-      }
-
-      if (existingJob.user_id !== userId) {
-        throw new Error("Unauthorized: You can only delete your own jobs");
+        throw new Error("Job not found or unauthorized");
       }
 
       const deletedJob = await prisma.job.update({
         where: { id },
-        data: { is_deleted: true }
+        data: { 
+          is_deleted: true,
+          job_description: `DELETED_JOB_${id}` // Mark as deleted
+        },
+        select: {
+          id: true,
+          job_title: true
+        }
       });
 
       return deletedJob;

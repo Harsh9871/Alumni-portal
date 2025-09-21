@@ -1,4 +1,4 @@
-const BASE_URL = "https://alumni-project-backend.onrender.com"
+const BASE_URL =import.meta.env.VITE_BASE_URL || "https://alumni-project-backend.onrender.com"
 import axios from "axios"
 import LocalStorage from "../utils/localStorage"
 
