@@ -6,8 +6,8 @@ const StudentStatsCards = ({ stats }) => {
   const theme = useTheme();
 
   const statItems = [
-    { title: 'Total Students', value: stats.total, icon: <Groups />, color: theme.palette.primary.main },
-    { title: 'Active Students', value: stats.active, icon: <Person />, color: theme.palette.success.main },
+    { title: 'Total Users', value: stats.total, icon: <Groups />, color: theme.palette.primary.main },
+    { title: 'Active Users', value: stats.active, icon: <Person />, color: theme.palette.success.main },
     { title: 'Alumni', value: stats.alumni, icon: <School />, color: theme.palette.info.main },
     { title: 'Job Posts', value: stats.jobPosts, icon: <Work />, color: theme.palette.warning.main },
     { title: 'Applications', value: stats.applications, icon: <TrendingUp />, color: theme.palette.secondary.main }

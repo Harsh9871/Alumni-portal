@@ -268,9 +268,25 @@ const updateUser = async (reqBody, id, role) => {
             if (reqBody.profile_picture_url !== undefined) updateData.profile_picture_url = reqBody.profile_picture_url;
             if (reqBody.resume !== undefined) updateData.resume = reqBody.resume;
 
-            await prisma.studentDetails.update({
+            await prisma.studentDetails.upsert({
                 where: { user_id: id },
-                data: updateData
+                update: updateData,
+                create: {
+                    user_id: id,
+                    ...updateData,
+                    // Add required fields with defaults if not provided
+                    full_name: updateData.full_name || '',
+                    bio: updateData.bio || '',
+                    mobile_number: updateData.mobile_number || '',
+                    gender: updateData.gender || '',
+                    email_address: updateData.email_address || '',
+                    linked_in: updateData.linked_in || '',
+                    github: updateData.github || '',
+                    about_us: updateData.about_us || '',
+                    dob: updateData.dob || new Date(),
+                    profile_picture_url: updateData.profile_picture_url || '',
+                    resume: updateData.resume || ''
+                }
             });
         }
 
@@ -288,9 +304,23 @@ const updateUser = async (reqBody, id, role) => {
             if (reqBody.passing_batch !== undefined) updateData.passing_batch = parseInt(reqBody.passing_batch);
             if (reqBody.degree_certificate !== undefined) updateData.degree_certificate = reqBody.degree_certificate;
 
-            await prisma.alumniDetails.update({
+            await prisma.alumniDetails.upsert({
                 where: { user_id: id },
-                data: updateData
+                update: updateData,
+                create: {
+                    user_id: id,
+                    ...updateData,
+                    // Add required fields with defaults if not provided
+                    full_name: updateData.full_name || '',
+                    bio: updateData.bio || '',
+                    mobile_number: updateData.mobile_number || '',
+                    gender: updateData.gender || '',
+                    email_address: updateData.email_address || '',
+                    dob: updateData.dob || new Date(),
+                    profile_picture_url: updateData.profile_picture_url || '',
+                    passing_batch: updateData.passing_batch || 0,
+                    degree_certificate: updateData.degree_certificate || ''
+                }
             });
         }
 
@@ -304,7 +334,7 @@ const updateUser = async (reqBody, id, role) => {
 const deleteUser = async (id) => {
     try {
         await prisma.user.update({
-            where: { id: id },
+            where: { user_id: id },
             data: { is_deleted: true }
         });
 

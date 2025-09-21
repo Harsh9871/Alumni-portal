@@ -174,19 +174,19 @@ const AlumniPage = () => {
     try {
       const response = await studentAPI.deleteStudent(selectedStudent.user_id);
       if (response && response.success) {
-        showSnackbar('Student deleted successfully', 'success');
+        showSnackbar('Alumni deleted successfully', 'success');
         fetchStudents(); // Refresh the data
       } else {
-        showSnackbar('Failed to delete student', 'error');
+        showSnackbar('Failed to delete alumni', 'error');
       }
     } catch (error) {
-      showSnackbar('Error deleting student: ' + error.message, 'error');
+      showSnackbar('Error deleting alumni: ' + error.message, 'error');
     }
     handleMenuClose();
   };
 
   const handleAddStudent = () => {
-    showSnackbar('Add student functionality not implemented yet', 'info');
+    showSnackbar('Add alumni functionality not implemented yet', 'info');
   };
 
   const handleRefresh = () => {
