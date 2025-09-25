@@ -1,6 +1,5 @@
 // controllers/apply.controller.js
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../config/db");
 const applyService = require("../services/apply.service");
 
 class ApplyController {
@@ -35,21 +34,14 @@ class ApplyController {
 
       const result = await applyService.getApplyService(jobId);
 
-      return res.status(result.success ? 200 : 400).json({
-        success: result.success,
-        message: result.message,
-        data: result.data,
-        ...(result.error && { error: result.error })
-      });
+      return res.status(200).json(result);
     } catch (error) {
       console.error("Error in getApplyController:", error);
       return res.status(500).json({
         success: false,
         message: "Internal server error",
-        error: error.message
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
-    } finally {
-      await prisma.$disconnect().catch(console.error);
     }
   }
 
@@ -80,21 +72,29 @@ class ApplyController {
 
       const result = await applyService.applyForJobService(userId, jobId);
 
-      return res.status(result.success ? 201 : 400).json({
-        success: result.success,
-        message: result.message,
-        data: result.data,
-        ...(result.error && { error: result.error })
-      });
+      return res.status(201).json(result);
     } catch (error) {
       console.error("Error in applyForJobController:", error);
+      
+      if (error.message.includes("not found") || error.message.includes("already applied")) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+
+      if (error.message.includes("deadline") || error.message.includes("not currently open")) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+
       return res.status(500).json({
         success: false,
         message: "Internal server error",
-        error: error.message
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
-    } finally {
-      await prisma.$disconnect().catch(console.error);
     }
   }
 
@@ -113,20 +113,22 @@ class ApplyController {
 
       const result = await applyService.deleteApplyService(userId, jobId);
 
-      return res.status(result.success ? 200 : 400).json({
-        success: result.success,
-        message: result.message,
-        ...(result.error && { error: result.error })
-      });
+      return res.status(200).json(result);
     } catch (error) {
       console.error("Error in deleteApplyController:", error);
+      
+      if (error.message.includes("not found")) {
+        return res.status(404).json({
+          success: false,
+          message: error.message
+        });
+      }
+
       return res.status(500).json({
         success: false,
         message: "Internal server error",
-        error: error.message
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
-    } finally {
-      await prisma.$disconnect().catch(console.error);
     }
   }
 }

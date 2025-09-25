@@ -1,6 +1,5 @@
 // services/apply.service.js
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../config/db");
 
 class ApplyService {
   async getApplyService(jobId) {
@@ -29,15 +28,6 @@ class ApplyService {
                   github: true,
                   linked_in: true
                 }
-              },
-              alumni: {
-                select: {
-                  id: true,
-                  full_name: true,
-                  email_address: true,
-                  mobile_number: true,
-                  passing_batch: true
-                }
               }
             }
           },
@@ -62,13 +52,7 @@ class ApplyService {
       };
     } catch (error) {
       console.error("Error in getApplyService:", error);
-      return {
-        success: false,
-        error: error.message,
-        message: "Failed to retrieve applications"
-      };
-    } finally {
-      await prisma.$disconnect().catch(console.error);
+      throw new Error(`Failed to retrieve applications: ${error.message}`);
     }
   }
 
@@ -83,24 +67,15 @@ class ApplyService {
       });
 
       if (!job) {
-        return {
-          success: false,
-          message: "Job not found or has been deleted"
-        };
+        throw new Error("Job not found or has been deleted");
       }
 
       if (job.status !== 'OPEN') {
-        return {
-          success: false,
-          message: "Job is not currently open for applications"
-        };
+        throw new Error("Job is not currently open for applications");
       }
 
       if (new Date() > job.open_till) {
-        return {
-          success: false,
-          message: "Application deadline has passed"
-        };
+        throw new Error("Application deadline has passed");
       }
 
       const existingApplication = await prisma.jobApplied.findFirst({
@@ -108,10 +83,7 @@ class ApplyService {
       });
 
       if (existingApplication) {
-        return {
-          success: false,
-          message: "You have already applied for this job"
-        };
+        throw new Error("You have already applied for this job");
       }
 
       const newApplication = await prisma.jobApplied.create({
@@ -143,9 +115,7 @@ class ApplyService {
                   full_name: true,
                   email_address: true,
                   mobile_number: true,
-                  profile_picture_url: true,
-                  github: true,
-                  linked_in: true
+                  profile_picture_url: true
                 }
               }
             }
@@ -160,13 +130,7 @@ class ApplyService {
       };
     } catch (error) {
       console.error("Error in applyForJobService:", error);
-      return {
-        success: false,
-        error: error.message,
-        message: "Failed to submit application"
-      };
-    } finally {
-      await prisma.$disconnect().catch(console.error);
+      throw new Error(`Failed to submit application: ${error.message}`);
     }
   }
 
@@ -181,10 +145,7 @@ class ApplyService {
       });
 
       if (!application) {
-        return {
-          success: false,
-          message: "Application not found"
-        };
+        throw new Error("Application not found");
       }
 
       await prisma.jobApplied.delete({
@@ -197,13 +158,7 @@ class ApplyService {
       };
     } catch (error) {
       console.error("Error in deleteApplyService:", error);
-      return {
-        success: false,
-        error: error.message,
-        message: "Failed to delete application"
-      };
-    } finally {
-      await prisma.$disconnect().catch(console.error);
+      throw new Error(`Failed to delete application: ${error.message}`);
     }
   }
 }
