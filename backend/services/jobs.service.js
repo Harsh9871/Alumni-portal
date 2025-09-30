@@ -1,6 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
-
+const prisma = require('../config/db');
 class JobsService {
   async getJobs({ filter = {} }) {
     try {
@@ -22,14 +20,14 @@ class JobsService {
         sortBy = 'joining_date',
         sortOrder = 'desc'
       } = filter;
-
+  
       // Build where clause dynamically
       const whereClause = {
         is_deleted: false, // Always exclude deleted jobs
         ...(status && { status }),
         ...(user_id && { user_id })
       };
-
+  
       // Text search filters
       const searchFilters = {
         job_title: job_title?.trim(),
@@ -40,7 +38,7 @@ class JobsService {
         experience: experience?.trim(),
         salary: salary?.trim()
       };
-
+  
       // Add text search conditions
       Object.entries(searchFilters).forEach(([field, value]) => {
         if (value) {
@@ -50,38 +48,54 @@ class JobsService {
           };
         }
       });
-
+  
       // Numeric filter for vacancy
       if (vacancy) {
         whereClause.vacancy = {
           equals: parseInt(vacancy)
         };
       }
-
+  
       // Date filters
       if (joining_date) {
         whereClause.joining_date = {
           gte: new Date(joining_date)
         };
       }
-
+  
       if (open_till) {
         whereClause.open_till = {
           gte: new Date(open_till)
         };
       }
-
+  
       // Pagination
       const pageNum = parseInt(page);
       const limitNum = parseInt(limit);
       const skip = (pageNum - 1) * limitNum;
-
+  
       const [jobs, totalCount] = await Promise.all([
         prisma.job.findMany({
           where: whereClause,
-          include: {
+          select: {
+            id: true,
+            user_id: true,
+            job_title: true,
+            job_description: true,
+            designation: true,
+            location: true,
+            mode: true,
+            experience: true,
+            salary: true,
+            vacancy: true,
+            joining_date: true,
+            status: true,
+            open_till: true,
+            is_deleted: true,
             user: {
-              include: {
+              select: {
+                id: true,
+                role: true,
                 alumni: {
                   select: {
                     full_name: true,
@@ -91,10 +105,6 @@ class JobsService {
                     bio: true
                   }
                 }
-              },
-              select: {
-                id: true,
-                role: true
               }
             },
             _count: {
@@ -111,7 +121,7 @@ class JobsService {
         }),
         prisma.job.count({ where: whereClause })
       ]);
-
+  
       return {
         jobs,
         pagination: {
@@ -145,9 +155,25 @@ class JobsService {
           id,
           is_deleted: false
         },
-        include: {
+        select: {
+          id: true,
+          user_id: true,
+          job_title: true,
+          job_description: true,
+          designation: true,
+          location: true,
+          mode: true,
+          experience: true,
+          salary: true,
+          vacancy: true,
+          joining_date: true,
+          status: true,
+          open_till: true,
+          is_deleted: true,
           user: {
-            include: {
+            select: {
+              id: true,
+              role: true,
               alumni: {
                 select: {
                   id: true,
@@ -167,7 +193,9 @@ class JobsService {
                 is_deleted: false
               }
             },
-            include: {
+            select: {
+              id: true,
+              applied_at: true,
               user: {
                 select: {
                   id: true,
@@ -221,14 +249,14 @@ class JobsService {
         open_till,
         user_id
       } = jobData;
-
+  
       // Validate required fields
       if (!job_title?.trim() || !job_description?.trim() || !designation?.trim() || 
           !location?.trim() || !mode?.trim() || !experience?.trim() || !salary?.trim() || 
           !vacancy || !joining_date || !status || !open_till || !user_id) {
         throw new Error("All job fields are required");
       }
-
+  
       // Validate that user exists and is an alumni
       const user = await prisma.user.findUnique({
         where: { 
@@ -239,19 +267,19 @@ class JobsService {
           alumni: true 
         }
       });
-
+  
       if (!user) {
         throw new Error("User not found or deactivated");
       }
-
+  
       if (user.role !== "ALUMNI") {
         throw new Error("Only alumni can create jobs");
       }
-
+  
       if (!user.alumni) {
         throw new Error("Alumni details not found for user");
       }
-
+  
       const newJob = await prisma.job.create({
         data: {
           job_title: job_title.trim(),
@@ -267,9 +295,25 @@ class JobsService {
           open_till: new Date(open_till),
           user_id
         },
-        include: {
+        select: {
+          id: true,
+          user_id: true,
+          job_title: true,
+          job_description: true,
+          designation: true,
+          location: true,
+          mode: true,
+          experience: true,
+          salary: true,
+          vacancy: true,
+          joining_date: true,
+          status: true,
+          open_till: true,
+          is_deleted: true,
           user: {
-            include: {
+            select: {
+              id: true,
+              role: true,
               alumni: {
                 select: {
                   full_name: true,
@@ -283,7 +327,7 @@ class JobsService {
           }
         }
       });
-
+  
       return newJob;
     } catch (error) {
       console.error("Error creating job:", error);
@@ -296,7 +340,7 @@ class JobsService {
       if (!id || typeof id !== 'string') {
         throw new Error("Invalid job ID");
       }
-
+  
       // Check if job exists and user owns it
       const existingJob = await prisma.job.findFirst({
         where: { 
@@ -305,11 +349,11 @@ class JobsService {
           user_id: userId
         }
       });
-
+  
       if (!existingJob) {
         throw new Error("Job not found or unauthorized");
       }
-
+  
       // Build update data object, only including provided fields
       const updateData = {};
       
@@ -318,7 +362,7 @@ class JobsService {
         'mode', 'experience', 'salary', 'vacancy', 'joining_date', 
         'status', 'open_till'
       ];
-
+  
       updatableFields.forEach(field => {
         if (jobData[field] !== undefined) {
           if (['job_title', 'job_description', 'designation', 'location', 'mode', 'experience', 'salary']
@@ -333,7 +377,7 @@ class JobsService {
           }
         }
       });
-
+  
       // Validate updated dates
       if (updateData.joining_date) {
         const currentDate = new Date();
@@ -341,20 +385,36 @@ class JobsService {
           throw new Error("Joining date must be in the future");
         }
       }
-
+  
       if (updateData.open_till) {
         const currentDate = new Date();
         if (updateData.open_till <= currentDate) {
           throw new Error("Open till date must be in the future");
         }
       }
-
+  
       const updatedJob = await prisma.job.update({
         where: { id },
         data: updateData,
-        include: {
+        select: {
+          id: true,
+          user_id: true,
+          job_title: true,
+          job_description: true,
+          designation: true,
+          location: true,
+          mode: true,
+          experience: true,
+          salary: true,
+          vacancy: true,
+          joining_date: true,
+          status: true,
+          open_till: true,
+          is_deleted: true,
           user: {
-            include: {
+            select: {
+              id: true,
+              role: true,
               alumni: {
                 select: {
                   full_name: true,
@@ -373,7 +433,7 @@ class JobsService {
           }
         }
       });
-
+  
       return updatedJob;
     } catch (error) {
       console.error("Error updating job:", error);
