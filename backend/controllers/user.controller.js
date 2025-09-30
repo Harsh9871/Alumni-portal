@@ -271,8 +271,10 @@ const adminCreateUser = async (req, res) => {
 };
 
 const adminUpdateUser = async (req, res) => {
+    
     const userId = req.params.id; // Get user ID from URL params
     const updateData = req.body;
+    
     
     try {
         // Validate user ID
@@ -305,7 +307,11 @@ const adminUpdateUser = async (req, res) => {
                 message: "Alumni details not found - create them first"
             });
         }
-        const result = await userService.updateUser(updateData, userId, user.role);
+        const result = await userService.updateUser(updateData, user.id, user.role);
+        console.log("Admin update - userId from params:", userId);
+        console.log("Admin update - user found:", user);
+        console.log("Admin update - user.user_id:", user.user_id);
+        console.log("Admin update - user.id:", user.id);
         console.log("Admin updated user controller:", result);
         
         if (result.success) {
@@ -353,7 +359,7 @@ const adminDeleteUser = async (req, res) => {
             });
         }
         
-        const result = await userService.deleteUser(user.id); // Use the internal ID for deletion
+        const result = await userService.deleteUser(userId); // Use the internal ID for deletion
         console.log("Admin deleted user controller:", result);
         
         if (result.success) {

@@ -198,7 +198,7 @@ const getUserById = async (userId) => {
 };
 
 const createUser = async (user, id, role) => {
-    console.log("Creating user with data:", user, id, role);
+    console.log("Creating/Updating user with data:", user, id, role);
 
     try {
         if (role === "STUDENT") {
@@ -216,10 +216,13 @@ const createUser = async (user, id, role) => {
                 profile_picture_url: user.profile_picture_url || '',
                 resume: user.resume || '',
             };
-            console.log("Creating STUDENT with data:", studentData);
+            console.log("Upserting STUDENT with data:", studentData);
 
-            await prisma.studentDetails.create({
-                data: studentData
+            // Use upsert to handle both create and update
+            await prisma.studentDetails.upsert({
+                where: { user_id: id },
+                update: studentData,
+                create: studentData
             });
         }
 
@@ -236,17 +239,20 @@ const createUser = async (user, id, role) => {
                 passing_batch: parseInt(user.passing_batch),
                 degree_certificate: user.degree_certificate || '',
             };
-            console.log("Creating ALUMNI with data:", alumniData);
+            console.log("Upserting ALUMNI with data:", alumniData);
 
-            await prisma.alumniDetails.create({
-                data: alumniData
+            // Use upsert to handle both create and update
+            await prisma.alumniDetails.upsert({
+                where: { user_id: id },
+                update: alumniData,
+                create: alumniData
             });
         }
 
-        return { success: true, message: "User created successfully" };
+        return { success: true, message: "User details saved successfully" };
     } catch (error) {
-        console.error("Error creating user:", error);
-        return { success: false, message: "Failed to create user", error: error.message };
+        console.error("Error saving user details:", error);
+        return { success: false, message: "Failed to save user details", error: error.message };
     }
 }
 
@@ -268,9 +274,25 @@ const updateUser = async (reqBody, id, role) => {
             if (reqBody.profile_picture_url !== undefined) updateData.profile_picture_url = reqBody.profile_picture_url;
             if (reqBody.resume !== undefined) updateData.resume = reqBody.resume;
 
-            await prisma.studentDetails.update({
+            await prisma.studentDetails.upsert({
                 where: { user_id: id },
-                data: updateData
+                update: updateData,
+                create: {
+                    user_id: id,
+                    ...updateData,
+                    // Add required fields with defaults if not provided
+                    full_name: updateData.full_name || '',
+                    bio: updateData.bio || '',
+                    mobile_number: updateData.mobile_number || '',
+                    gender: updateData.gender || '',
+                    email_address: updateData.email_address || '',
+                    linked_in: updateData.linked_in || '',
+                    github: updateData.github || '',
+                    about_us: updateData.about_us || '',
+                    dob: updateData.dob || new Date(),
+                    profile_picture_url: updateData.profile_picture_url || '',
+                    resume: updateData.resume || ''
+                }
             });
         }
 
@@ -288,9 +310,23 @@ const updateUser = async (reqBody, id, role) => {
             if (reqBody.passing_batch !== undefined) updateData.passing_batch = parseInt(reqBody.passing_batch);
             if (reqBody.degree_certificate !== undefined) updateData.degree_certificate = reqBody.degree_certificate;
 
-            await prisma.alumniDetails.update({
+            await prisma.alumniDetails.upsert({
                 where: { user_id: id },
-                data: updateData
+                update: updateData,
+                create: {
+                    user_id: id,
+                    ...updateData,
+                    // Add required fields with defaults if not provided
+                    full_name: updateData.full_name || '',
+                    bio: updateData.bio || '',
+                    mobile_number: updateData.mobile_number || '',
+                    gender: updateData.gender || '',
+                    email_address: updateData.email_address || '',
+                    dob: updateData.dob || new Date(),
+                    profile_picture_url: updateData.profile_picture_url || '',
+                    passing_batch: updateData.passing_batch || 0,
+                    degree_certificate: updateData.degree_certificate || ''
+                }
             });
         }
 
@@ -304,7 +340,7 @@ const updateUser = async (reqBody, id, role) => {
 const deleteUser = async (id) => {
     try {
         await prisma.user.update({
-            where: { id: id },
+            where: { user_id: id },
             data: { is_deleted: true }
         });
 

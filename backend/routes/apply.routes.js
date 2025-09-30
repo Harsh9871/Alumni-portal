@@ -1,10 +1,16 @@
+// routes/apply.routes.js
 const express = require("express");
 const router = express.Router();
 const applyController = require("../controllers/apply.controller");
 const { verifyToken } = require("../middlewares/auth.middleware");
 
-router.get("/apply/:id", verifyToken, applyController.getApplyController); // for alimni to get all applied jobs for a perticluar post
-router.post("/apply/:id", verifyToken, applyController.applyForJobController); // for student to apply for a job for a perticular post
-router.delete("/apply/:id", verifyToken, applyController.deleteApplyController); // for student to delete an applied job for a perticular post
+// Get all applications for a specific job (ALUMNI only)
+router.get("/:id", verifyToken, applyController.getApplyController);
+
+// Apply for a job (STUDENT only)
+router.post("/:id", verifyToken, applyController.applyForJobController);
+
+// Delete an application (STUDENT only)
+router.delete("/:id", verifyToken, applyController.deleteApplyController);
 
 module.exports = router;
