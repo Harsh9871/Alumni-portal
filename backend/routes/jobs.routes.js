@@ -6,8 +6,11 @@ const { verifyToken } = require('../middlewares/auth.middleware');
 // GET /jobs - Get all jobs with optional filters
 router.get('/', jobController.getJobsController);
 
+// GET /jobs/my - Get current alumni's jobs
+router.get('/my', verifyToken, jobController.getMyJobsController);
+
 // GET /jobs/:id - Get job by ID
-router.get('/:id', jobController.getJobByIdController);
+router.get('/:id', verifyToken, jobController.getJobByIdController);
 
 // POST /jobs - Create new job (Alumni only)
 router.post('/', verifyToken, jobController.createJobController);
