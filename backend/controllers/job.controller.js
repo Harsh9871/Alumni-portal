@@ -28,7 +28,9 @@ class JobsController {
   async getJobByIdController(req, res) {
     try {
       const { id } = req.params;
-
+      console.log("Controller - User:", req.user);
+      console.log("Controller - Headers:", req.headers.authorization);
+  
       if (!id || typeof id !== 'string') {
         return res.status(400).json({
           success: false,
@@ -36,8 +38,7 @@ class JobsController {
         });
       }
 
-      const job = await jobsService.getJobById(id);
-      
+      const job = await jobsService.getJobById(id, req.user?.id, req.user?.role);      
       res.status(200).json({
         success: true,
         message: "Job fetched successfully",
@@ -322,7 +323,44 @@ class JobsController {
       });
     }
   }
-
+  async getMyJobsController(req, res) {
+    try {
+      // Check if user is authenticated
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized: Please authenticate first"
+        });
+      }
+  
+      // Check if user is an alumni
+      if (req.user.role !== "ALUMNI") {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden: Only alumni can view their jobs"
+        });
+      }
+  
+      // Get filters from query params
+      const filter = req.query;
+      
+      const jobs = await jobsService.getMyJobs(req.user.id, filter);
+      
+      res.status(200).json({
+        success: true,
+        message: "Your jobs fetched successfully",
+        data: jobs,
+        count: jobs.jobs.length
+      });
+    } catch (error) {
+      console.error("Error in getMyJobsController:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch your jobs",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
   async deleteJobController(req, res) {
     try {
       const { id } = req.params;

@@ -1,6 +1,6 @@
 const BASE_URL = import.meta.env.VITE_BASE_URL || "https://alumni-project-backend.onrender.com"
 import axios from "axios"
-import Auth from "./Auth"
+import Auth from "./auth"
 
 class Upload {
     constructor() {

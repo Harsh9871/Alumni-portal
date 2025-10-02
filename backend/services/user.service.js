@@ -201,18 +201,29 @@ const createUser = async (user, id, role) => {
     console.log("Creating/Updating user with data:", user, id, role);
 
     try {
+        // Validate and parse date
+        const parseDate = (dateString) => {
+            if (!dateString) return new Date(); // Default to current date if not provided
+            
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                throw new Error(`Invalid date format: ${dateString}`);
+            }
+            return date;
+        };
+
         if (role === "STUDENT") {
             const studentData = {
                 user_id: id,
                 full_name: user.full_name,
                 bio: user.bio || '',
                 mobile_number: user.mobile_number,
-                gender: user.gender,
+                gender: user.gender || null, // Handle undefined -> null
                 email_address: user.email_address,
                 linked_in: user.linked_in || '',
                 github: user.github || '',
                 about_us: user.about_us || '',
-                dob: new Date(user.dob),
+                dob: parseDate(user.dob), // Use validated date
                 profile_picture_url: user.profile_picture_url || '',
                 resume: user.resume || '',
             };
@@ -232,11 +243,11 @@ const createUser = async (user, id, role) => {
                 full_name: user.full_name,
                 bio: user.bio || '',
                 mobile_number: user.mobile_number,
-                gender: user.gender,
+                gender: user.gender || null, // Handle undefined -> null
                 email_address: user.email_address,
-                dob: new Date(user.dob),
+                dob: parseDate(user.dob), // Use validated date
                 profile_picture_url: user.profile_picture_url || '',
-                passing_batch: parseInt(user.passing_batch),
+                passing_batch: parseInt(user.passing_batch) || 0,
                 degree_certificate: user.degree_certificate || '',
             };
             console.log("Upserting ALUMNI with data:", alumniData);
@@ -258,6 +269,16 @@ const createUser = async (user, id, role) => {
 
 const updateUser = async (reqBody, id, role) => {
     try {
+        // Date validation helper
+        const parseDate = (dateString) => {
+            if (!dateString) return undefined;
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                throw new Error(`Invalid date format: ${dateString}`);
+            }
+            return date;
+        };
+
         if (role === "STUDENT") {
             const updateData = {};
 
@@ -265,12 +286,12 @@ const updateUser = async (reqBody, id, role) => {
             if (reqBody.full_name !== undefined) updateData.full_name = reqBody.full_name;
             if (reqBody.bio !== undefined) updateData.bio = reqBody.bio;
             if (reqBody.mobile_number !== undefined) updateData.mobile_number = reqBody.mobile_number;
-            if (reqBody.gender !== undefined) updateData.gender = reqBody.gender;
+            if (reqBody.gender !== undefined) updateData.gender = reqBody.gender || null;
             if (reqBody.email_address !== undefined) updateData.email_address = reqBody.email_address;
             if (reqBody.linked_in !== undefined) updateData.linked_in = reqBody.linked_in;
             if (reqBody.github !== undefined) updateData.github = reqBody.github;
             if (reqBody.about_us !== undefined) updateData.about_us = reqBody.about_us;
-            if (reqBody.dob !== undefined) updateData.dob = new Date(reqBody.dob);
+            if (reqBody.dob !== undefined) updateData.dob = parseDate(reqBody.dob);
             if (reqBody.profile_picture_url !== undefined) updateData.profile_picture_url = reqBody.profile_picture_url;
             if (reqBody.resume !== undefined) updateData.resume = reqBody.resume;
 
@@ -284,7 +305,7 @@ const updateUser = async (reqBody, id, role) => {
                     full_name: updateData.full_name || '',
                     bio: updateData.bio || '',
                     mobile_number: updateData.mobile_number || '',
-                    gender: updateData.gender || '',
+                    gender: updateData.gender || null,
                     email_address: updateData.email_address || '',
                     linked_in: updateData.linked_in || '',
                     github: updateData.github || '',
@@ -303,11 +324,11 @@ const updateUser = async (reqBody, id, role) => {
             if (reqBody.full_name !== undefined) updateData.full_name = reqBody.full_name;
             if (reqBody.bio !== undefined) updateData.bio = reqBody.bio;
             if (reqBody.mobile_number !== undefined) updateData.mobile_number = reqBody.mobile_number;
-            if (reqBody.gender !== undefined) updateData.gender = reqBody.gender;
+            if (reqBody.gender !== undefined) updateData.gender = reqBody.gender || null;
             if (reqBody.email_address !== undefined) updateData.email_address = reqBody.email_address;
-            if (reqBody.dob !== undefined) updateData.dob = new Date(reqBody.dob);
+            if (reqBody.dob !== undefined) updateData.dob = parseDate(reqBody.dob);
             if (reqBody.profile_picture_url !== undefined) updateData.profile_picture_url = reqBody.profile_picture_url;
-            if (reqBody.passing_batch !== undefined) updateData.passing_batch = parseInt(reqBody.passing_batch);
+            if (reqBody.passing_batch !== undefined) updateData.passing_batch = parseInt(reqBody.passing_batch) || 0;
             if (reqBody.degree_certificate !== undefined) updateData.degree_certificate = reqBody.degree_certificate;
 
             await prisma.alumniDetails.upsert({
@@ -320,7 +341,7 @@ const updateUser = async (reqBody, id, role) => {
                     full_name: updateData.full_name || '',
                     bio: updateData.bio || '',
                     mobile_number: updateData.mobile_number || '',
-                    gender: updateData.gender || '',
+                    gender: updateData.gender || null,
                     email_address: updateData.email_address || '',
                     dob: updateData.dob || new Date(),
                     profile_picture_url: updateData.profile_picture_url || '',
