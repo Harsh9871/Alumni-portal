@@ -42,13 +42,15 @@ const CreateProfile = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activeStep, setActiveStep] = useState(0);
+  const [isEditing, setIsEditing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const userRole = localStorage.getItem('role');
   const cleanRole = userRole ? userRole.replace(/"/g, '').trim() : '';
   const isStudent = cleanRole === 'STUDENT';
   const isAlumni = cleanRole === 'ALUMNI';
 
-  // Updated profile data with required backend fields
+  // Initialize with empty profile data
   const [profileData, setProfileData] = useState({
     // REQUIRED Backend Fields
     full_name: '',
@@ -79,7 +81,8 @@ const CreateProfile = () => {
     current_company: '',
     designation: '',
     years_of_experience: '',
-    portfolio_url: ''
+    portfolio_url: '',
+    degree_certificate_url: ''
   });
 
   const [resumeFile, setResumeFile] = useState(null);
@@ -92,31 +95,64 @@ const CreateProfile = () => {
 
   const checkExistingProfile = async () => {
     try {
+      setInitialLoading(true);
       const result = await userDetailsService.getUserProfile();
-      if (result.success && result.data.data) {
-        const existingProfile = result.data.data;
-        if (isStudent && existingProfile.student) {
-          setProfileData(prev => ({
-            ...prev,
-            ...existingProfile.student,
-            // Map backend fields
-            dob: existingProfile.student.date_of_birth || '',
-            linked_in: existingProfile.student.linkedin_url || '',
-            github: existingProfile.student.github_url || ''
-          }));
-        } else if (isAlumni && existingProfile.alumni) {
-          setProfileData(prev => ({
-            ...prev,
-            ...existingProfile.alumni,
-            // Map backend fields
-            dob: existingProfile.alumni.date_of_birth || '',
-            linked_in: existingProfile.alumni.linkedin_url || '',
-            github: existingProfile.alumni.github_url || ''
-          }));
-        }
+      console.log('Profile API Response:', result);
+      
+      // Wait for response and check if profile exists
+      if (result.success && result.data) {
+        const existingProfile = result.data;
+        console.log('Existing Profile Data:', existingProfile);
+        
+        setIsEditing(true);
+        
+        // Safely map fields from API response, keep blank if not found
+        setProfileData({
+          // REQUIRED fields - keep blank if not in response
+          full_name: existingProfile.full_name || '',
+          email_address: existingProfile.email_address || '',
+          mobile_number: existingProfile.mobile_number || '',
+          bio: existingProfile.bio || '',
+          gender: existingProfile.gender || '',
+          dob: existingProfile.dob ? existingProfile.dob.split('T')[0] : '',
+          
+          // Optional fields - keep blank if not in response
+          linked_in: existingProfile.linked_in || '',
+          github: existingProfile.github || '',
+          about_us: existingProfile.about_us || '',
+          profile_picture_url: existingProfile.profile_picture_url || '',
+          resume: existingProfile.resume || '',
+          
+          // Student specific fields - keep blank if not in response
+          student_id: existingProfile.student_id || '',
+          course: existingProfile.course || '',
+          department: existingProfile.department || '',
+          current_year: existingProfile.current_year || '',
+          cgpa: existingProfile.cgpa || '',
+          address: existingProfile.address || '',
+          skills: existingProfile.skills || '',
+          
+          // Alumni specific fields - keep blank if not in response
+          passing_batch: existingProfile.passing_batch || '',
+          current_company: existingProfile.current_company || '',
+          designation: existingProfile.designation || '',
+          years_of_experience: existingProfile.years_of_experience || '',
+          portfolio_url: existingProfile.portfolio_url || '',
+          degree_certificate_url: existingProfile.degree_certificate_url || ''
+        });
+        
+        console.log('Profile loaded for editing');
+      } else {
+        // No profile found, stay in create mode with blank fields
+        console.log('No existing profile found, staying in create mode');
+        setIsEditing(false);
       }
     } catch (err) {
-      // No existing profile
+      console.error('Error checking existing profile:', err);
+      // On error, default to create mode with blank fields
+      setIsEditing(false);
+    } finally {
+      setInitialLoading(false);
     }
   };
 
@@ -129,6 +165,8 @@ const CreateProfile = () => {
       ...prev,
       [field]: value
     }));
+    // Clear error when user starts typing
+    if (error) setError('');
   };
 
   const handleFileUpload = async (file, type) => {
@@ -148,6 +186,7 @@ const CreateProfile = () => {
       }
     } catch (err) {
       setError('Error uploading file');
+      console.error('File upload error:', err);
       return null;
     }
   };
@@ -155,8 +194,11 @@ const CreateProfile = () => {
   const handleNext = () => {
     // Validate current step before proceeding
     if (activeStep === 0) {
-      if (!profileData.full_name || !profileData.email_address || !profileData.mobile_number || !profileData.gender || !profileData.dob) {
-        setError('Please fill all required fields');
+      const requiredFields = ['full_name', 'email_address', 'mobile_number', 'gender', 'dob', 'bio'];
+      const missingFields = requiredFields.filter(field => !profileData[field]);
+      
+      if (missingFields.length > 0) {
+        setError('Please fill all required fields marked with *');
         return;
       }
     }
@@ -165,6 +207,7 @@ const CreateProfile = () => {
   };
 
   const handleBack = () => {
+    setError('');
     setActiveStep((prev) => prev - 1);
   };
 
@@ -176,19 +219,32 @@ const CreateProfile = () => {
 
     try {
       // Validate required fields
-      if (!profileData.full_name || !profileData.email_address || !profileData.mobile_number || 
-          !profileData.bio || !profileData.gender || !profileData.dob) {
-        setError('Please fill all required fields (marked with *)');
+      const requiredFields = {
+        full_name: 'Full Name',
+        email_address: 'Email Address',
+        mobile_number: 'Mobile Number',
+        bio: 'Bio',
+        gender: 'Gender',
+        dob: 'Date of Birth'
+      };
+
+      const missingFields = Object.entries(requiredFields)
+        .filter(([key]) => !profileData[key])
+        .map(([, label]) => label);
+
+      if (missingFields.length > 0) {
+        setError(`Please fill all required fields: ${missingFields.join(', ')}`);
         setLoading(false);
         return;
       }
 
       // Upload files if provided
-      let resumeUrl = null;
-      let certificateUrl = null;
-      let profilePictureUrl = null;
+      let resumeUrl = profileData.resume;
+      let certificateUrl = profileData.degree_certificate_url;
+      let profilePictureUrl = profileData.profile_picture_url;
 
       if (resumeFile) {
+        console.log('Uploading resume...');
         resumeUrl = await handleFileUpload(resumeFile, 'resume');
         if (!resumeUrl) {
           setLoading(false);
@@ -197,6 +253,7 @@ const CreateProfile = () => {
       }
 
       if (certificateFile) {
+        console.log('Uploading certificate...');
         certificateUrl = await handleFileUpload(certificateFile, 'certificate');
         if (!certificateUrl) {
           setLoading(false);
@@ -205,53 +262,52 @@ const CreateProfile = () => {
       }
 
       if (profilePictureFile) {
+        console.log('Uploading profile picture...');
         profilePictureUrl = await handleFileUpload(profilePictureFile, 'profile');
       }
 
       // Prepare final data for backend
       const submitData = {
         // REQUIRED Fields
-        full_name: profileData.full_name,
-        email_address: profileData.email_address,
-        mobile_number: profileData.mobile_number,
-        bio: profileData.bio,
+        full_name: profileData.full_name.trim(),
+        email_address: profileData.email_address.trim(),
+        mobile_number: profileData.mobile_number.trim(),
+        bio: profileData.bio.trim(),
         gender: profileData.gender,
         dob: profileData.dob,
         
-        // Optional Fields
-        linked_in: profileData.linked_in || '',
-        github: profileData.github || '',
-        about_us: profileData.about_us || '',
-        profile_picture_url: profilePictureUrl || '',
-        resume: resumeUrl || '',
-        
-        // Additional fields based on role
-        ...(isStudent && {
-          student_id: profileData.student_id || '',
-          course: profileData.course || '',
-          department: profileData.department || '',
-          current_year: profileData.current_year || '',
-          cgpa: profileData.cgpa || '',
-          address: profileData.address || '',
-          skills: profileData.skills || ''
-        }),
-        ...(isAlumni && {
-          passing_batch: profileData.passing_batch || '',
-          current_company: profileData.current_company || '',
-          designation: profileData.designation || '',
-          years_of_experience: profileData.years_of_experience || '',
-          portfolio_url: profileData.portfolio_url || '',
-          degree_certificate_url: certificateUrl || ''
-        })
+        // Optional Fields - only include if not empty
+        ...(profileData.linked_in && { linked_in: profileData.linked_in.trim() }),
+        ...(profileData.github && { github: profileData.github.trim() }),
+        ...(profileData.about_us && { about_us: profileData.about_us.trim() }),
+        ...(profilePictureUrl && { profile_picture_url: profilePictureUrl }),
+        ...(resumeUrl && { resume: resumeUrl }),
       };
 
-      // Remove empty strings and null values
-      Object.keys(submitData).forEach(key => {
-        if (submitData[key] === '' || submitData[key] == null) {
-          delete submitData[key];
-        }
-      });
+      // Add role-specific fields only if they have values
+      if (isStudent) {
+        if (profileData.student_id) submitData.student_id = profileData.student_id.trim();
+        if (profileData.course) submitData.course = profileData.course.trim();
+        if (profileData.department) submitData.department = profileData.department.trim();
+        if (profileData.current_year) submitData.current_year = profileData.current_year;
+        if (profileData.cgpa) submitData.cgpa = profileData.cgpa;
+        if (profileData.address) submitData.address = profileData.address.trim();
+        if (profileData.skills) submitData.skills = profileData.skills.trim();
+      }
 
+      if (isAlumni) {
+        if (profileData.passing_batch) submitData.passing_batch = profileData.passing_batch;
+        if (profileData.current_company) submitData.current_company = profileData.current_company.trim();
+        if (profileData.designation) submitData.designation = profileData.designation.trim();
+        if (profileData.years_of_experience) submitData.years_of_experience = profileData.years_of_experience;
+        if (profileData.portfolio_url) submitData.portfolio_url = profileData.portfolio_url.trim();
+        if (certificateUrl) submitData.degree_certificate_url = certificateUrl;
+      }
+
+      console.log('Submitting profile data:', submitData);
+      console.log('Mode:', isEditing ? 'UPDATE' : 'CREATE');
+
+      // Call appropriate hook method based on mode and role
       let result;
       if (isStudent) {
         result = await userDetailsService.createStudentProfile(submitData);
@@ -259,19 +315,22 @@ const CreateProfile = () => {
         result = await userDetailsService.createAlumniProfile(submitData);
       }
 
+      console.log('API Response:', result);
+
       if (result.success) {
-        setSuccess('Profile saved successfully!');
+        const message = isEditing ? 'Profile updated successfully!' : 'Profile created successfully!';
+        setSuccess(message);
         authService.updateProfileStatus(true);
         
         setTimeout(() => {
           navigate('/profile');
         }, 2000);
       } else {
-        setError(result.error || 'Failed to save profile');
+        setError(result.error || `Failed to ${isEditing ? 'update' : 'create'} profile`);
       }
     } catch (err) {
-      setError('Error saving profile');
-      console.error('Error:', err);
+      console.error('Submit error:', err);
+      setError(`Error ${isEditing ? 'updating' : 'creating'} profile. Please try again.`);
     } finally {
       setLoading(false);
     }
@@ -289,8 +348,8 @@ const CreateProfile = () => {
                 value={profileData.full_name}
                 onChange={(e) => handleChange('full_name', e.target.value)}
                 required
-                error={!profileData.full_name}
-                helperText={!profileData.full_name ? "Full name is required" : ""}
+                error={!profileData.full_name && error !== ''}
+                helperText={!profileData.full_name && error !== '' ? "Full name is required" : ""}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -301,8 +360,8 @@ const CreateProfile = () => {
                 value={profileData.email_address}
                 onChange={(e) => handleChange('email_address', e.target.value)}
                 required
-                error={!profileData.email_address}
-                helperText={!profileData.email_address ? "Email is required" : ""}
+                error={!profileData.email_address && error !== ''}
+                helperText={!profileData.email_address && error !== '' ? "Email is required" : ""}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -312,8 +371,8 @@ const CreateProfile = () => {
                 value={profileData.mobile_number}
                 onChange={(e) => handleChange('mobile_number', e.target.value)}
                 required
-                error={!profileData.mobile_number}
-                helperText={!profileData.mobile_number ? "Mobile number is required" : ""}
+                error={!profileData.mobile_number && error !== ''}
+                helperText={!profileData.mobile_number && error !== '' ? "Mobile number is required" : ""}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -325,12 +384,12 @@ const CreateProfile = () => {
                 onChange={(e) => handleChange('dob', e.target.value)}
                 InputLabelProps={{ shrink: true }}
                 required
-                error={!profileData.dob}
-                helperText={!profileData.dob ? "Date of birth is required" : ""}
+                error={!profileData.dob && error !== ''}
+                helperText={!profileData.dob && error !== '' ? "Date of birth is required" : ""}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth required error={!profileData.gender}>
+              <FormControl fullWidth required error={!profileData.gender && error !== ''}>
                 <InputLabel>Gender *</InputLabel>
                 <Select
                   value={profileData.gender}
@@ -371,8 +430,8 @@ const CreateProfile = () => {
                 onChange={(e) => handleChange('bio', e.target.value)}
                 placeholder="Tell us about yourself..."
                 required
-                error={!profileData.bio}
-                helperText={!profileData.bio ? "Bio is required" : ""}
+                error={!profileData.bio && error !== ''}
+                helperText={!profileData.bio && error !== '' ? "Bio is required" : ""}
               />
             </Grid>
             <Grid item xs={12}>
@@ -504,16 +563,18 @@ const CreateProfile = () => {
       case 2:
         return (
           <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Skills"
-                value={profileData.skills}
-                onChange={(e) => handleChange('skills', e.target.value)}
-                placeholder="e.g. JavaScript, React, Node.js, Python (comma separated)"
-                helperText="Separate skills with commas"
-              />
-            </Grid>
+            {isStudent && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Skills"
+                  value={profileData.skills}
+                  onChange={(e) => handleChange('skills', e.target.value)}
+                  placeholder="e.g. JavaScript, React, Node.js, Python (comma separated)"
+                  helperText="Separate skills with commas"
+                />
+              </Grid>
+            )}
             {isStudent ? (
               <Grid item xs={12}>
                 <Button
@@ -522,7 +583,7 @@ const CreateProfile = () => {
                   fullWidth
                   sx={{ py: 2 }}
                 >
-                  Upload Resume (PDF)
+                  {resumeFile ? 'Change Resume (PDF)' : profileData.resume ? 'Update Resume (PDF)' : 'Upload Resume (PDF)'}
                   <input
                     type="file"
                     hidden
@@ -537,6 +598,14 @@ const CreateProfile = () => {
                     sx={{ mt: 1 }}
                   />
                 )}
+                {profileData.resume && !resumeFile && (
+                  <Chip
+                    label="Resume already uploaded"
+                    color="success"
+                    variant="outlined"
+                    sx={{ mt: 1 }}
+                  />
+                )}
               </Grid>
             ) : (
               <Grid item xs={12}>
@@ -546,7 +615,7 @@ const CreateProfile = () => {
                   fullWidth
                   sx={{ py: 2 }}
                 >
-                  Upload Degree Certificate (PDF/Image)
+                  {certificateFile ? 'Change Certificate' : profileData.degree_certificate_url ? 'Update Degree Certificate' : 'Upload Degree Certificate (PDF/Image)'}
                   <input
                     type="file"
                     hidden
@@ -561,6 +630,14 @@ const CreateProfile = () => {
                     sx={{ mt: 1 }}
                   />
                 )}
+                {profileData.degree_certificate_url && !certificateFile && (
+                  <Chip
+                    label="Certificate already uploaded"
+                    color="success"
+                    variant="outlined"
+                    sx={{ mt: 1 }}
+                  />
+                )}
               </Grid>
             )}
           </Grid>
@@ -570,6 +647,16 @@ const CreateProfile = () => {
         return null;
     }
   };
+
+  // Show loading spinner while checking for existing profile
+  if (initialLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress size={40} />
+        <Typography sx={{ ml: 2 }}>Loading profile data...</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
@@ -583,12 +670,15 @@ const CreateProfile = () => {
           Back
         </Button>
         <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
-          {isStudent ? 'Create Student Profile' : 'Create Alumni Profile'}
+          {isEditing 
+            ? `Edit ${isStudent ? 'Student' : 'Alumni'} Profile` 
+            : `Create ${isStudent ? 'Student' : 'Alumni'} Profile`
+          }
         </Typography>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
           {error}
         </Alert>
       )}
@@ -629,7 +719,7 @@ const CreateProfile = () => {
                   disabled={loading}
                   startIcon={loading ? <CircularProgress size={16} /> : <Save />}
                 >
-                  {loading ? 'Saving...' : 'Save Profile'}
+                  {loading ? 'Saving...' : (isEditing ? 'Update Profile' : 'Create Profile')}
                 </Button>
               ) : (
                 <Button
@@ -654,7 +744,7 @@ const CreateProfile = () => {
           component="label"
           sx={{ mb: 1 }}
         >
-          Upload Profile Picture
+          {profilePictureFile ? 'Change Profile Picture' : profileData.profile_picture_url ? 'Update Profile Picture' : 'Upload Profile Picture'}
           <input
             type="file"
             hidden
@@ -666,6 +756,14 @@ const CreateProfile = () => {
           <Chip
             label={profilePictureFile.name}
             onDelete={() => setProfilePictureFile(null)}
+            sx={{ ml: 1 }}
+          />
+        )}
+        {profileData.profile_picture_url && !profilePictureFile && (
+          <Chip
+            label="Profile picture already uploaded"
+            color="success"
+            variant="outlined"
             sx={{ ml: 1 }}
           />
         )}
