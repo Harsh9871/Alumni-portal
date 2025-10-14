@@ -3,8 +3,8 @@ const jobsService = require("../services/jobs.service");
 class JobsController {
   async getJobsController(req, res) {
     try {
-      // Get filter from query params or body
-      const filter = req.method === 'GET' ? req.query : req.body?.filter || {};
+      // Get filter from query params for GET requests
+      const filter = req.query;
       
       const jobs = await jobsService.getJobs({ filter });
       
@@ -12,14 +12,15 @@ class JobsController {
         success: true,
         message: "Jobs fetched successfully",
         data: jobs,
-        count: jobs.length
+        count: jobs.length,
+        filters_applied: Object.keys(filter).length > 0 ? filter : null
       });
     } catch (error) {
       console.error("Error in getJobsController:", error);
       res.status(500).json({
         success: false,
-        message: "Internal server error",
-        error: error.message
+        message: "Failed to fetch jobs",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }
@@ -27,16 +28,17 @@ class JobsController {
   async getJobByIdController(req, res) {
     try {
       const { id } = req.params;
-
-      if (!id) {
+      console.log("Controller - User:", req.user);
+      console.log("Controller - Headers:", req.headers.authorization);
+  
+      if (!id || typeof id !== 'string') {
         return res.status(400).json({
           success: false,
-          message: "Job ID is required"
+          message: "Valid Job ID is required"
         });
       }
 
-      const job = await jobsService.getJobById(id);
-      
+      const job = await jobsService.getJobById(id, req.user?.id, req.user?.role);      
       res.status(200).json({
         success: true,
         message: "Job fetched successfully",
@@ -54,8 +56,8 @@ class JobsController {
 
       res.status(500).json({
         success: false,
-        message: "Internal server error",
-        error: error.message
+        message: "Failed to fetch job",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }
@@ -66,7 +68,7 @@ class JobsController {
       if (!req.user) {
         return res.status(401).json({
           success: false,
-          message: "Unauthorized: No user found"
+          message: "Unauthorized: Please authenticate first"
         });
       }
 
@@ -88,28 +90,34 @@ class JobsController {
         salary,
         vacancy,
         joining_date,
-        status,
+        status = "OPEN", // Default status
         open_till
       } = req.body;
 
-      // Validate required fields
-      if (!job_title || !job_description || !designation || !location || !mode || !experience || !salary || !vacancy || !joining_date || !status || !open_till) {
+      // Validation schema
+      const requiredFields = {
+        job_title: job_title?.trim(),
+        job_description: job_description?.trim(),
+        designation: designation?.trim(),
+        location: location?.trim(),
+        mode: mode?.trim(),
+        experience: experience?.trim(),
+        salary: salary?.trim(),
+        vacancy: vacancy ? parseInt(vacancy) : undefined,
+        joining_date,
+        open_till
+      };
+
+      // Check for missing required fields
+      const missingFields = Object.entries(requiredFields)
+        .filter(([key, value]) => !value || (typeof value === 'number' && isNaN(value)))
+        .map(([key]) => key);
+
+      if (missingFields.length > 0) {
         return res.status(400).json({
           success: false,
-          message: "All fields are required",
-          required_fields: [
-            "job_title",
-            "job_description", 
-            "designation",
-            "location",
-            "mode",
-            "experience",
-            "salary",
-            "vacancy",
-            "joining_date",
-            "status",
-            "open_till"
-          ]
+          message: "Missing required fields",
+          missing_fields: missingFields
         });
       }
 
@@ -118,7 +126,8 @@ class JobsController {
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid status. Must be one of: OPEN, CLOSED, ON_HOLD"
+          message: "Invalid status. Must be one of: OPEN, CLOSED, ON_HOLD",
+          valid_options: validStatuses
         });
       }
 
@@ -127,10 +136,17 @@ class JobsController {
       const openTillDate = new Date(open_till);
       const currentDate = new Date();
 
-      if (isNaN(joiningDate.getTime()) || isNaN(openTillDate.getTime())) {
+      if (isNaN(joiningDate.getTime())) {
         return res.status(400).json({
           success: false,
-          message: "Invalid date format. Use ISO 8601 format (YYYY-MM-DDTHH:mm:ss.sssZ)"
+          message: "Invalid joining date format. Use ISO 8601 format"
+        });
+      }
+
+      if (isNaN(openTillDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid open till date format. Use ISO 8601 format"
         });
       }
 
@@ -155,14 +171,6 @@ class JobsController {
           message: "Vacancy must be a positive number"
         });
       }
-
-      console.log("Creating job:", {
-        joining_date: joiningDate,
-        open_till: openTillDate,
-        status,
-        user_id: req.user.id,
-        user_role: req.user.role
-      });
 
       const newJob = await jobsService.createJob({
         job_title,
@@ -203,8 +211,8 @@ class JobsController {
 
       res.status(500).json({
         success: false,
-        message: "Internal server error",
-        error: error.message
+        message: "Failed to create job",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }
@@ -213,17 +221,17 @@ class JobsController {
     try {
       const { id } = req.params;
 
-      if (!id) {
+      if (!id || typeof id !== 'string') {
         return res.status(400).json({
           success: false,
-          message: "Job ID is required"
+          message: "Valid Job ID is required"
         });
       }
 
       if (!req.user) {
         return res.status(401).json({
           success: false,
-          message: "Unauthorized: No user found"
+          message: "Unauthorized: Please authenticate first"
         });
       }
 
@@ -242,10 +250,17 @@ class JobsController {
 
       if (open_till) {
         const openTillDate = new Date(open_till);
+        const currentDate = new Date();
         if (isNaN(openTillDate.getTime())) {
           return res.status(400).json({
             success: false,
             message: "Invalid open till date format"
+          });
+        }
+        if (openTillDate <= currentDate) {
+          return res.status(400).json({
+            success: false,
+            message: "Open till date must be in the future"
           });
         }
       }
@@ -255,7 +270,8 @@ class JobsController {
         if (!validStatuses.includes(status)) {
           return res.status(400).json({
             success: false,
-            message: "Invalid status. Must be one of: OPEN, CLOSED, ON_HOLD"
+            message: "Invalid status. Must be one of: OPEN, CLOSED, ON_HOLD",
+            valid_options: validStatuses
           });
         }
       }
@@ -302,27 +318,64 @@ class JobsController {
 
       res.status(500).json({
         success: false,
-        message: "Internal server error",
-        error: error.message
+        message: "Failed to update job",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }
-
+  async getMyJobsController(req, res) {
+    try {
+      // Check if user is authenticated
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized: Please authenticate first"
+        });
+      }
+  
+      // Check if user is an alumni
+      if (req.user.role !== "ALUMNI") {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden: Only alumni can view their jobs"
+        });
+      }
+  
+      // Get filters from query params
+      const filter = req.query;
+      
+      const jobs = await jobsService.getMyJobs(req.user.id, filter);
+      
+      res.status(200).json({
+        success: true,
+        message: "Your jobs fetched successfully",
+        data: jobs,
+        count: jobs.jobs.length
+      });
+    } catch (error) {
+      console.error("Error in getMyJobsController:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch your jobs",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
   async deleteJobController(req, res) {
     try {
       const { id } = req.params;
 
-      if (!id) {
+      if (!id || typeof id !== 'string') {
         return res.status(400).json({
           success: false,
-          message: "Job ID is required"
+          message: "Valid Job ID is required"
         });
       }
 
       if (!req.user) {
         return res.status(401).json({
           success: false,
-          message: "Unauthorized: No user found"
+          message: "Unauthorized: Please authenticate first"
         });
       }
 
@@ -331,7 +384,10 @@ class JobsController {
       res.status(200).json({
         success: true,
         message: "Job deleted successfully",
-        data: deletedJob
+        data: {
+          id: deletedJob.id,
+          message: "Job marked as deleted"
+        }
       });
     } catch (error) {
       console.error("Error in deleteJobController:", error);
@@ -352,8 +408,8 @@ class JobsController {
 
       res.status(500).json({
         success: false,
-        message: "Internal server error",
-        error: error.message
+        message: "Failed to delete job",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }

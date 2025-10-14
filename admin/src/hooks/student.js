@@ -1,19 +1,23 @@
-const BASE_URL = "http://localhost:5000"
+
+const BASE_URL = import.meta.env.VITE_BASE_URL || "https://alumni-project-backend.onrender.com"
 import axios from "axios"
 import LocalStorage from "../utils/localStorage"
 
 class Student {
+    // Helper method to get auth headers
+    getAuthHeaders() {
+        const token = LocalStorage.getItem("token")
+        return token ? { 'Authorization': `Bearer ${token}` } : {}
+    }
+
     async signup(user_id, password, role) {
         try {
-            const email = LocalStorage.getItem("email");
-            const adminPassword = LocalStorage.getItem("password");
-            
             const response = await axios.post(`${BASE_URL}/auth/signup`, {
                 user_id,
                 password,
-                role,
-                admin_email:email,
-                password: adminPassword
+                role
+            }, {
+                headers: this.getAuthHeaders()
             });
             
             if (response.status === 201) {
@@ -22,7 +26,7 @@ class Student {
             return null;
         } catch (error) {
             console.error('Error signing up user:', error);
-            return null;
+            throw error;
         }
     }
 
@@ -30,12 +34,27 @@ class Student {
         try {
             const page = filter.page || 1;
             const limit = filter.limit || 10;
-            const email = LocalStorage.getItem("email");
-            const password = LocalStorage.getItem("password");
+            const role = filter.role || '';
+            const search = filter.search || '';
+            const gender = filter.gender || '';
             
-            const response = await axios.post(`${BASE_URL}/user/all`, { 
-                page, limit , admin_email:email, admin_password:password,role:"student" }
-            );
+            const params = { page, limit };
+
+            // Add optional filters
+            if (role && role !== 'ALL') {
+                params.role = role.toLowerCase();
+            }
+            if (search) {
+                params.search = search;
+            }
+            if (gender && gender !== 'ALL') {
+                params.gender = gender;
+            }
+            
+            const response = await axios.get(`${BASE_URL}/user/all`, { 
+                params,
+                headers: this.getAuthHeaders()
+            });
             
             if (response.status === 200) {
                 return response.data;
@@ -43,17 +62,14 @@ class Student {
             return null;
         } catch (error) {
             console.error('Error fetching students:', error);
-            return null;
+            throw error;
         }
     }
 
     async getStudentById(id) {
         try {
-            const email = LocalStorage.getItem("email");
-            const password = LocalStorage.getItem("password");
-            
             const response = await axios.get(`${BASE_URL}/user/${id}`, {
-                data: { admin_email:email, admin_password:password,role:"student" }
+                headers: this.getAuthHeaders()
             });
             
             if (response.status === 200) {
@@ -62,7 +78,108 @@ class Student {
             return null;
         } catch (error) {
             console.error('Error fetching student:', error);
+            throw error;
+        }
+    }
+
+    async updateStudent(id, updateData) {
+        try {
+            const response = await axios.put(`${BASE_URL}/user/admin/${id}`, updateData, {
+                headers: this.getAuthHeaders()
+            });
+            
+            if (response.status === 200) {
+                return response.data;
+            }
             return null;
+        } catch (error) {
+            console.error('Error updating student:', error);
+            throw error;
+        }
+    }
+
+    async deleteStudent(id) {
+        try {
+            const response = await axios.delete(`${BASE_URL}/user/admin/${id}`, {
+                headers: this.getAuthHeaders()
+            });
+            
+            if (response.status === 200) {
+                return response.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error deleting student:', error);
+            throw error;
+        }
+    }
+
+    async login(user_id, password) {
+        try {
+            const response = await axios.post(`${BASE_URL}/auth/login`, {
+                user_id,
+                password
+            });
+            
+            if (response.status === 200) {
+                return response.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error logging in user:', error);
+            throw error;
+        }
+    }
+
+    async bulkDelete(ids) {
+        try {
+            const response = await axios.post(`${BASE_URL}/user/bulk-delete`, {
+                ids
+            }, {
+                headers: this.getAuthHeaders()
+            });
+            
+            if (response.status === 200) {
+                return response.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error bulk deleting students:', error);
+            throw error;
+        }
+    }
+
+    async exportStudents(format = 'csv') {
+        try {
+            const response = await axios.get(`${BASE_URL}/user/export`, {
+                params: { format },
+                headers: this.getAuthHeaders(),
+                responseType: 'blob'
+            });
+            
+            if (response.status === 200) {
+                return response.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error exporting students:', error);
+            throw error;
+        }
+    }
+
+    async getStudentStats() {
+        try {
+            const response = await axios.get(`${BASE_URL}/user/stats`, {
+                headers: this.getAuthHeaders()
+            });
+            
+            if (response.status === 200) {
+                return response.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching student stats:', error);
+            throw error;
         }
     }
 }

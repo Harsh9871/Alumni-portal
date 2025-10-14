@@ -1,13 +1,17 @@
-import React from "react";
+import React, { memo } from "react";
 import Navbar from "../common/Navbar";
-const Dashboard = ({ children }) => {
 
+const Dashboard = memo(({ children }) => {
   return (
-    <div>
-        <Navbar/>
-      {children}
+    <div className="min-h-screen bg-gray-50">
+    
+      <main className="container mx-auto px py-6">
+        {children}
+      </main>
     </div>
   );
-};
+});
+
+Dashboard.displayName = "Dashboard";
 
 export default Dashboard;
